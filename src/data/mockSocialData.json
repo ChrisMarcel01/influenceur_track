@@ -1,0 +1,757 @@
+{
+  "influencers": [
+    {
+      "id": "amelia-dupont",
+      "displayName": "Amelia Dupont",
+      "location": "Paris, France",
+      "topics": [
+        "Mode",
+        "Voyage",
+        "Lifestyle"
+      ],
+      "verified": true,
+      "summary": {
+        "growthSeries": [
+          152000,
+          154400,
+          156800,
+          159200,
+          161500,
+          164000,
+          166200,
+          168900,
+          171400,
+          174200,
+          177600,
+          181000
+        ],
+        "engagementByFormat": {
+          "Photo": 4.8,
+          "Vidéo": 5.3,
+          "Story": 3.9,
+          "Live": 4.2
+        }
+      },
+      "accounts": {
+        "Instagram": {
+          "handle": "amelia.dupont",
+          "displayName": "Amelia Dupont"
+        },
+        "TikTok": {
+          "handle": "amelia_dupont",
+          "displayName": "Amelia Dupont"
+        }
+      },
+      "platforms": {
+        "Instagram": {
+          "metrics": {
+            "followers": 181000,
+            "weeklyDelta": 3200,
+            "avgEngagement": 4.9,
+            "posts7d": 5
+          },
+          "followersSeries": [
+            {
+              "period": "W-11",
+              "followers": 152000
+            },
+            {
+              "period": "W-10",
+              "followers": 154400
+            },
+            {
+              "period": "W-9",
+              "followers": 156800
+            },
+            {
+              "period": "W-8",
+              "followers": 159200
+            },
+            {
+              "period": "W-7",
+              "followers": 161500
+            },
+            {
+              "period": "W-6",
+              "followers": 164000
+            },
+            {
+              "period": "W-5",
+              "followers": 166200
+            },
+            {
+              "period": "W-4",
+              "followers": 168900
+            },
+            {
+              "period": "W-3",
+              "followers": 171400
+            },
+            {
+              "period": "W-2",
+              "followers": 174200
+            },
+            {
+              "period": "W-1",
+              "followers": 177600
+            },
+            {
+              "period": "W0",
+              "followers": 181000
+            }
+          ],
+          "engagementByFormat": {
+            "Photo": 5.1,
+            "Vidéo": 5.6,
+            "Story": 4.1,
+            "Live": 4.4
+          },
+          "posts": [
+            {
+              "id": "ig-amelia-1",
+              "platform": "Instagram",
+              "title": "Look d'automne à Montmartre",
+              "likes": 18240,
+              "comments": 436,
+              "date": "2024-10-21",
+              "url": "https://instagram.com/p/amelia-look"
+            },
+            {
+              "id": "ig-amelia-2",
+              "platform": "Instagram",
+              "title": "Routine bien-être du lundi",
+              "likes": 16510,
+              "comments": 298,
+              "date": "2024-10-17",
+              "url": "https://instagram.com/p/amelia-routine"
+            },
+            {
+              "id": "ig-amelia-3",
+              "platform": "Instagram",
+              "title": "Coulisses d'un shooting Vogue",
+              "likes": 21480,
+              "comments": 512,
+              "date": "2024-10-10",
+              "url": "https://instagram.com/p/amelia-vogue"
+            }
+          ]
+        },
+        "TikTok": {
+          "metrics": {
+            "followers": 246000,
+            "weeklyDelta": 5800,
+            "avgEngagement": 6.2,
+            "posts7d": 7
+          },
+          "followersSeries": [
+            {
+              "period": "W-11",
+              "followers": 210000
+            },
+            {
+              "period": "W-10",
+              "followers": 212800
+            },
+            {
+              "period": "W-9",
+              "followers": 215600
+            },
+            {
+              "period": "W-8",
+              "followers": 218900
+            },
+            {
+              "period": "W-7",
+              "followers": 221400
+            },
+            {
+              "period": "W-6",
+              "followers": 224800
+            },
+            {
+              "period": "W-5",
+              "followers": 228200
+            },
+            {
+              "period": "W-4",
+              "followers": 231600
+            },
+            {
+              "period": "W-3",
+              "followers": 235100
+            },
+            {
+              "period": "W-2",
+              "followers": 238400
+            },
+            {
+              "period": "W-1",
+              "followers": 241900
+            },
+            {
+              "period": "W0",
+              "followers": 246000
+            }
+          ],
+          "engagementByFormat": {
+            "Photo": 4.2,
+            "Vidéo": 6.8,
+            "Story": 5.6,
+            "Live": 5.1
+          },
+          "posts": [
+            {
+              "id": "tt-amelia-1",
+              "platform": "TikTok",
+              "title": "Haul automne capsule",
+              "likes": 48200,
+              "comments": 1890,
+              "date": "2024-10-19",
+              "url": "https://www.tiktok.com/@amelia_dupont/video/1"
+            },
+            {
+              "id": "tt-amelia-2",
+              "platform": "TikTok",
+              "title": "Conseils valise week-end",
+              "likes": 41560,
+              "comments": 1320,
+              "date": "2024-10-13",
+              "url": "https://www.tiktok.com/@amelia_dupont/video/2"
+            },
+            {
+              "id": "tt-amelia-3",
+              "platform": "TikTok",
+              "title": "Morning routine express",
+              "likes": 50120,
+              "comments": 2010,
+              "date": "2024-10-05",
+              "url": "https://www.tiktok.com/@amelia_dupont/video/3"
+            }
+          ]
+        }
+      },
+      "posts": [
+        {
+          "id": "ig-amelia-3",
+          "platform": "Instagram",
+          "title": "Coulisses d'un shooting Vogue",
+          "likes": 21480,
+          "comments": 512,
+          "date": "2024-10-10",
+          "url": "https://instagram.com/p/amelia-vogue"
+        },
+        {
+          "id": "tt-amelia-3",
+          "platform": "TikTok",
+          "title": "Morning routine express",
+          "likes": 50120,
+          "comments": 2010,
+          "date": "2024-10-05",
+          "url": "https://www.tiktok.com/@amelia_dupont/video/3"
+        }
+      ]
+    },
+    {
+      "id": "lucas-martin",
+      "displayName": "Lucas Martin",
+      "location": "Lyon, France",
+      "topics": [
+        "Tech",
+        "Productivité",
+        "IA"
+      ],
+      "verified": false,
+      "summary": {
+        "growthSeries": [
+          94000,
+          96000,
+          98500,
+          101000,
+          104500,
+          108200,
+          112000,
+          116500,
+          121000,
+          125800,
+          130600,
+          135400
+        ],
+        "engagementByFormat": {
+          "Photo": 2.8,
+          "Vidéo": 4.9,
+          "Story": 3.5,
+          "Live": 4.2
+        }
+      },
+      "accounts": {
+        "YouTube": {
+          "handle": "lucas_martin",
+          "displayName": "Lucas Martin"
+        },
+        "Instagram": {
+          "handle": "lucasmartin.tech",
+          "displayName": "Lucas Martin"
+        }
+      },
+      "platforms": {
+        "YouTube": {
+          "metrics": {
+            "followers": 182000,
+            "weeklyDelta": 4100,
+            "avgEngagement": 5.4,
+            "posts7d": 2
+          },
+          "followersSeries": [
+            {
+              "period": "W-11",
+              "followers": 94000
+            },
+            {
+              "period": "W-10",
+              "followers": 96000
+            },
+            {
+              "period": "W-9",
+              "followers": 98500
+            },
+            {
+              "period": "W-8",
+              "followers": 101000
+            },
+            {
+              "period": "W-7",
+              "followers": 104500
+            },
+            {
+              "period": "W-6",
+              "followers": 108200
+            },
+            {
+              "period": "W-5",
+              "followers": 112000
+            },
+            {
+              "period": "W-4",
+              "followers": 116500
+            },
+            {
+              "period": "W-3",
+              "followers": 121000
+            },
+            {
+              "period": "W-2",
+              "followers": 125800
+            },
+            {
+              "period": "W-1",
+              "followers": 130600
+            },
+            {
+              "period": "W0",
+              "followers": 135400
+            }
+          ],
+          "engagementByFormat": {
+            "Photo": 0,
+            "Vidéo": 5.8,
+            "Story": 0,
+            "Live": 4.6
+          },
+          "posts": [
+            {
+              "id": "yt-lucas-1",
+              "platform": "YouTube",
+              "title": "Automatiser sa veille avec l'IA",
+              "likes": 6200,
+              "comments": 540,
+              "date": "2024-10-16",
+              "url": "https://youtube.com/watch?v=lucas1"
+            },
+            {
+              "id": "yt-lucas-2",
+              "platform": "YouTube",
+              "title": "Setup productivité 2025",
+              "likes": 7120,
+              "comments": 610,
+              "date": "2024-10-09",
+              "url": "https://youtube.com/watch?v=lucas2"
+            },
+            {
+              "id": "yt-lucas-3",
+              "platform": "YouTube",
+              "title": "3 outils no-code incontournables",
+              "likes": 5450,
+              "comments": 420,
+              "date": "2024-09-30",
+              "url": "https://youtube.com/watch?v=lucas3"
+            }
+          ]
+        },
+        "Instagram": {
+          "metrics": {
+            "followers": 86000,
+            "weeklyDelta": 1800,
+            "avgEngagement": 3.1,
+            "posts7d": 3
+          },
+          "followersSeries": [
+            {
+              "period": "W-11",
+              "followers": 54000
+            },
+            {
+              "period": "W-10",
+              "followers": 55800
+            },
+            {
+              "period": "W-9",
+              "followers": 57600
+            },
+            {
+              "period": "W-8",
+              "followers": 59500
+            },
+            {
+              "period": "W-7",
+              "followers": 61400
+            },
+            {
+              "period": "W-6",
+              "followers": 63400
+            },
+            {
+              "period": "W-5",
+              "followers": 65400
+            },
+            {
+              "period": "W-4",
+              "followers": 67500
+            },
+            {
+              "period": "W-3",
+              "followers": 69700
+            },
+            {
+              "period": "W-2",
+              "followers": 72000
+            },
+            {
+              "period": "W-1",
+              "followers": 74200
+            },
+            {
+              "period": "W0",
+              "followers": 86000
+            }
+          ],
+          "engagementByFormat": {
+            "Photo": 3.4,
+            "Vidéo": 3.8,
+            "Story": 2.9,
+            "Live": 3.1
+          },
+          "posts": [
+            {
+              "id": "ig-lucas-1",
+              "platform": "Instagram",
+              "title": "Desk tour 2025",
+              "likes": 8200,
+              "comments": 190,
+              "date": "2024-10-18",
+              "url": "https://instagram.com/p/lucas-desk"
+            },
+            {
+              "id": "ig-lucas-2",
+              "platform": "Instagram",
+              "title": "Shortcut clavier favori",
+              "likes": 6100,
+              "comments": 140,
+              "date": "2024-10-12",
+              "url": "https://instagram.com/p/lucas-shortcut"
+            },
+            {
+              "id": "ig-lucas-3",
+              "platform": "Instagram",
+              "title": "Mini vlog conférence IA",
+              "likes": 9400,
+              "comments": 320,
+              "date": "2024-10-03",
+              "url": "https://instagram.com/p/lucas-vlog"
+            }
+          ]
+        }
+      },
+      "posts": [
+        {
+          "id": "yt-lucas-2",
+          "platform": "YouTube",
+          "title": "Setup productivité 2025",
+          "likes": 7120,
+          "comments": 610,
+          "date": "2024-10-09",
+          "url": "https://youtube.com/watch?v=lucas2"
+        },
+        {
+          "id": "ig-lucas-3",
+          "platform": "Instagram",
+          "title": "Mini vlog conférence IA",
+          "likes": 9400,
+          "comments": 320,
+          "date": "2024-10-03",
+          "url": "https://instagram.com/p/lucas-vlog"
+        }
+      ]
+    },
+    {
+      "id": "sofia-chen",
+      "displayName": "Sofia Chen",
+      "location": "Montréal, Canada",
+      "topics": [
+        "Gaming",
+        "Esport",
+        "Streaming"
+      ],
+      "verified": true,
+      "summary": {
+        "growthSeries": [
+          205000,
+          207500,
+          210000,
+          213000,
+          216500,
+          220000,
+          223500,
+          227000,
+          231000,
+          235500,
+          240000,
+          245000
+        ],
+        "engagementByFormat": {
+          "Photo": 3.1,
+          "Vidéo": 6.4,
+          "Story": 4.8,
+          "Live": 7.2
+        }
+      },
+      "accounts": {
+        "TikTok": {
+          "handle": "sofia.gg",
+          "displayName": "Sofia Chen"
+        },
+        "X": {
+          "handle": "sofiachen",
+          "displayName": "Sofia Chen"
+        }
+      },
+      "platforms": {
+        "TikTok": {
+          "metrics": {
+            "followers": 245000,
+            "weeklyDelta": 7200,
+            "avgEngagement": 7.1,
+            "posts7d": 8
+          },
+          "followersSeries": [
+            {
+              "period": "W-11",
+              "followers": 205000
+            },
+            {
+              "period": "W-10",
+              "followers": 207500
+            },
+            {
+              "period": "W-9",
+              "followers": 210000
+            },
+            {
+              "period": "W-8",
+              "followers": 213000
+            },
+            {
+              "period": "W-7",
+              "followers": 216500
+            },
+            {
+              "period": "W-6",
+              "followers": 220000
+            },
+            {
+              "period": "W-5",
+              "followers": 223500
+            },
+            {
+              "period": "W-4",
+              "followers": 227000
+            },
+            {
+              "period": "W-3",
+              "followers": 231000
+            },
+            {
+              "period": "W-2",
+              "followers": 235500
+            },
+            {
+              "period": "W-1",
+              "followers": 240000
+            },
+            {
+              "period": "W0",
+              "followers": 245000
+            }
+          ],
+          "engagementByFormat": {
+            "Photo": 3.6,
+            "Vidéo": 7.5,
+            "Story": 5.2,
+            "Live": 7.9
+          },
+          "posts": [
+            {
+              "id": "tt-sofia-1",
+              "platform": "TikTok",
+              "title": "Top 3 tips Valorant",
+              "likes": 65200,
+              "comments": 3120,
+              "date": "2024-10-20",
+              "url": "https://www.tiktok.com/@sofia.gg/video/1"
+            },
+            {
+              "id": "tt-sofia-2",
+              "platform": "TikTok",
+              "title": "Setup RGB tour",
+              "likes": 58800,
+              "comments": 2640,
+              "date": "2024-10-14",
+              "url": "https://www.tiktok.com/@sofia.gg/video/2"
+            },
+            {
+              "id": "tt-sofia-3",
+              "platform": "TikTok",
+              "title": "Highlights stream Twitch",
+              "likes": 70200,
+              "comments": 3410,
+              "date": "2024-10-07",
+              "url": "https://www.tiktok.com/@sofia.gg/video/3"
+            }
+          ]
+        },
+        "X": {
+          "metrics": {
+            "followers": 128000,
+            "weeklyDelta": 2600,
+            "avgEngagement": 2.9,
+            "posts7d": 14
+          },
+          "followersSeries": [
+            {
+              "period": "W-11",
+              "followers": 98000
+            },
+            {
+              "period": "W-10",
+              "followers": 99500
+            },
+            {
+              "period": "W-9",
+              "followers": 101200
+            },
+            {
+              "period": "W-8",
+              "followers": 103000
+            },
+            {
+              "period": "W-7",
+              "followers": 105300
+            },
+            {
+              "period": "W-6",
+              "followers": 107500
+            },
+            {
+              "period": "W-5",
+              "followers": 110000
+            },
+            {
+              "period": "W-4",
+              "followers": 112400
+            },
+            {
+              "period": "W-3",
+              "followers": 115000
+            },
+            {
+              "period": "W-2",
+              "followers": 118200
+            },
+            {
+              "period": "W-1",
+              "followers": 122400
+            },
+            {
+              "period": "W0",
+              "followers": 128000
+            }
+          ],
+          "engagementByFormat": {
+            "Photo": 2.4,
+            "Vidéo": 0,
+            "Story": 0,
+            "Live": 2.9
+          },
+          "posts": [
+            {
+              "id": "x-sofia-1",
+              "platform": "X",
+              "title": "Annonce coaching tournoi",
+              "likes": 18200,
+              "comments": 980,
+              "date": "2024-10-18",
+              "url": "https://x.com/sofiachen/status/1"
+            },
+            {
+              "id": "x-sofia-2",
+              "platform": "X",
+              "title": "Thread config streaming",
+              "likes": 15200,
+              "comments": 740,
+              "date": "2024-10-11",
+              "url": "https://x.com/sofiachen/status/2"
+            },
+            {
+              "id": "x-sofia-3",
+              "platform": "X",
+              "title": "RDV meet-up Montréal",
+              "likes": 13400,
+              "comments": 620,
+              "date": "2024-10-04",
+              "url": "https://x.com/sofiachen/status/3"
+            }
+          ]
+        }
+      },
+      "posts": [
+        {
+          "id": "tt-sofia-3",
+          "platform": "TikTok",
+          "title": "Highlights stream Twitch",
+          "likes": 70200,
+          "comments": 3410,
+          "date": "2024-10-07",
+          "url": "https://www.tiktok.com/@sofia.gg/video/3"
+        },
+        {
+          "id": "x-sofia-1",
+          "platform": "X",
+          "title": "Annonce coaching tournoi",
+          "likes": 18200,
+          "comments": 980,
+          "date": "2024-10-18",
+          "url": "https://x.com/sofiachen/status/1"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 import { Platform } from "@/lib/platforms";
+import { request, shouldUseMock, toUserFacingError } from "./client";
+import { mockSearchInfluencers } from "./mockSocialData";
 
 export interface InfluencerSearchResult {
   id: string;
@@ -18,19 +20,11 @@ interface SearchParams {
   limit?: number;
 }
 
-const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
-
-async function request<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    const message = text || `Request failed with status ${response.status}`;
-    throw new Error(message);
-  }
-  return response.json() as Promise<T>;
-}
-
-export async function searchInfluencers({ platform, query, limit = 8 }: SearchParams): Promise<InfluencerSearchResult[]> {
+export async function searchInfluencers({
+  platform,
+  query,
+  limit = 8,
+}: SearchParams): Promise<InfluencerSearchResult[]> {
   const normalizedQuery = query.trim();
   if (!normalizedQuery) return [];
 
@@ -42,6 +36,14 @@ export async function searchInfluencers({ platform, query, limit = 8 }: SearchPa
     params.set("platform", platform);
   }
 
-  const result = await request<{ results: InfluencerSearchResult[] }>(`/search/influencers?${params.toString()}`);
-  return result.results ?? [];
+  try {
+    const result = await request<{ results: InfluencerSearchResult[] }>(`/search/influencers?${params.toString()}`);
+    return result.results ?? [];
+  } catch (error) {
+    if (shouldUseMock(error)) {
+      return mockSearchInfluencers({ platform, query: normalizedQuery, limit });
+    }
+    throw toUserFacingError(error, "Impossible de récupérer les influenceurs");
+  }
 }
+

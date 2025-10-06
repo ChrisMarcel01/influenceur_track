@@ -1,4 +1,12 @@
 import { Platform } from "@/lib/platforms";
+import { request, shouldUseMock, isNotFound, toUserFacingError } from "./client";
+import {
+  mockFetchInfluencerProfile,
+  mockFetchPlatformPosts,
+  mockFetchFollowersHistory,
+  mockFetchEngagementBreakdown,
+  mockFetchPlatformMetrics,
+} from "./mockSocialData";
 
 export interface PlatformAccount {
   handle: string;
@@ -47,25 +55,12 @@ export interface InfluencerProfileResponse {
   posts?: PostSummary[];
 }
 
-const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => "");
-    const message = text || `Request failed with status ${response.status}`;
-    throw new Error(message);
-  }
-
-  return response.json() as Promise<T>;
+function fallbackProfile(platform: Platform, handle: string): InfluencerProfileResponse {
+  const profile = mockFetchInfluencerProfile({ platform, handle });
+  if (profile) return profile;
+  throw new Error(
+    `Aucun profil de démonstration pour ${handle} sur ${platform}. Configurez VITE_SOCIAL_API_URL pour interroger votre backend.`,
+  );
 }
 
 export async function fetchInfluencerProfile({
@@ -80,7 +75,17 @@ export async function fetchInfluencerProfile({
     handle,
   });
 
-  return request<InfluencerProfileResponse>(`/influencers/profile?${params.toString()}`);
+  try {
+    return await request<InfluencerProfileResponse>(`/influencers/profile?${params.toString()}`);
+  } catch (error) {
+    if (shouldUseMock(error)) {
+      return fallbackProfile(platform, handle);
+    }
+    if (isNotFound(error)) {
+      throw new Error(`Aucun profil trouvé pour ${handle} sur ${platform}`);
+    }
+    throw toUserFacingError(error, "Impossible de récupérer le profil");
+  }
 }
 
 export async function fetchPlatformPosts({
@@ -93,7 +98,15 @@ export async function fetchPlatformPosts({
   limit?: number;
 }): Promise<PostSummary[]> {
   const params = new URLSearchParams({ handle, limit: String(limit) });
-  return request<PostSummary[]>(`/platforms/${platform.toLowerCase()}/posts?${params.toString()}`);
+
+  try {
+    return await request<PostSummary[]>(`/platforms/${platform.toLowerCase()}/posts?${params.toString()}`);
+  } catch (error) {
+    if (shouldUseMock(error)) {
+      return mockFetchPlatformPosts({ platform, handle, limit });
+    }
+    throw toUserFacingError(error, "Impossible de récupérer les posts");
+  }
 }
 
 export async function fetchFollowersHistory({
@@ -106,7 +119,15 @@ export async function fetchFollowersHistory({
   weeks?: number;
 }): Promise<FollowersPoint[]> {
   const params = new URLSearchParams({ handle, weeks: String(weeks) });
-  return request<FollowersPoint[]>(`/platforms/${platform.toLowerCase()}/followers?${params.toString()}`);
+
+  try {
+    return await request<FollowersPoint[]>(`/platforms/${platform.toLowerCase()}/followers?${params.toString()}`);
+  } catch (error) {
+    if (shouldUseMock(error)) {
+      return mockFetchFollowersHistory({ platform, handle, weeks });
+    }
+    throw toUserFacingError(error, "Impossible de récupérer l'historique des abonnés");
+  }
 }
 
 export async function fetchEngagementBreakdown({
@@ -117,7 +138,15 @@ export async function fetchEngagementBreakdown({
   handle: string;
 }): Promise<Record<string, number>> {
   const params = new URLSearchParams({ handle });
-  return request<Record<string, number>>(`/platforms/${platform.toLowerCase()}/engagement?${params.toString()}`);
+
+  try {
+    return await request<Record<string, number>>(`/platforms/${platform.toLowerCase()}/engagement?${params.toString()}`);
+  } catch (error) {
+    if (shouldUseMock(error)) {
+      return mockFetchEngagementBreakdown({ platform, handle });
+    }
+    throw toUserFacingError(error, "Impossible de récupérer la ventilation de l'engagement");
+  }
 }
 
 export async function fetchPlatformMetrics({
@@ -128,5 +157,17 @@ export async function fetchPlatformMetrics({
   handle: string;
 }): Promise<PlatformMetrics> {
   const params = new URLSearchParams({ handle });
-  return request<PlatformMetrics>(`/platforms/${platform.toLowerCase()}/metrics?${params.toString()}`);
+
+  try {
+    return await request<PlatformMetrics>(`/platforms/${platform.toLowerCase()}/metrics?${params.toString()}`);
+  } catch (error) {
+    if (shouldUseMock(error)) {
+      const metrics = mockFetchPlatformMetrics({ platform, handle });
+      if (metrics) {
+        return metrics;
+      }
+    }
+    throw toUserFacingError(error, "Impossible de récupérer les métriques");
+  }
 }
+

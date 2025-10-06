@@ -1,69 +1,55 @@
-# React + TypeScript + Vite
+# InfluenceTrack – interface de suivi des influenceurs
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Cette application React/TypeScript permet de rechercher des influenceurs, de lier leurs comptes sociaux et de visualiser leurs métriques clés.
 
-Currently, two official plugins are available:
+## Prérequis
+- Node.js 18+ (recommandé : 20)
+- npm 9+
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Installation
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Lancer l'application
+### 1. Avec l'API de démonstration incluse
+Une API mock est fournie pour tester l'interface sans backend externe.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run mock:api
 ```
+
+Par défaut elle écoute sur `http://0.0.0.0:3030`. Dans un second terminal, démarrez l'interface :
+
+```bash
+VITE_SOCIAL_API_URL=http://localhost:3030 npm run dev
+```
+
+### 2. Avec votre propre backend
+Exposez des endpoints compatibles avec ceux utilisés dans `src/api` puis définissez l'URL :
+
+```bash
+VITE_SOCIAL_API_URL=https://mon-backend.exemple.com npm run dev
+```
+
+Si la variable n'est pas définie ou que le service est indisponible, l'application basculera automatiquement sur le dataset de démonstration embarqué.
+
+## Scripts utiles
+- `npm run dev` : démarre Vite (penser à définir `VITE_SOCIAL_API_URL` si besoin)
+- `npm run mock:api` : lance l'API mock basée sur `src/data/mockSocialData.json`
+- `npm run build` : compile l'application pour la production
+- `npm run preview` : prévisualise le build de production
+- `npm run lint` : exécute ESLint
+
+## Structure des données mock
+Les données de démonstration se trouvent dans `src/data/mockSocialData.json`. Elles alimentent :
+- Les résultats de recherche (handles, topics, métriques)
+- Les profils détaillés (séries de croissance, posts récents, formats)
+
+Vous pouvez enrichir ce fichier pour ajouter d'autres influenceurs ou plateformes.
+
+## Déploiement
+1. Construire le bundle : `npm run build`
+2. Déployer le dossier `dist` sur la plateforme de votre choix (Netlify, Vercel, etc.)
+3. Configurer la variable d'environnement `VITE_SOCIAL_API_URL` vers votre API publique si vous souhaitez utiliser des données temps réel.
+
