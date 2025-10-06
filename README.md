@@ -80,6 +80,18 @@ VITE_ALLOW_MOCK_FALLBACK=true
 
 Les données de démonstration sont stockées dans `src/data/mockSocialData.json`.
 
+## Tester en environnement réel
+
+Pour valider l'application avec des données de production, suivez les étapes ci-dessous :
+
+1. **Préparer les accès** – Collectez les identifiants listés dans le tableau ci-dessus et exportez-les dans votre shell (ou votre `.env.local`). Sans ces valeurs, les plateformes refuseront la plupart des appels live.
+2. **Lancer le proxy social** – Exécutez `npm run live:api` pour démarrer `scripts/social-live-api.mjs`. Vérifiez dans la console que chaque connecteur démarre sans erreur 4xx/5xx.
+3. **Démarrer l'interface** – Dans un second terminal, lancez `VITE_SOCIAL_API_URL=http://localhost:3031 npm run dev` afin de pointer l'UI vers le proxy live. Naviguez vers `http://localhost:5173` (par défaut) et recherchez un influenceur réel pour confirmer la récupération des métriques.
+4. **Analyser les journaux** – Surveillez le terminal du proxy : vous y verrez les requêtes effectuées vers les réseaux sociaux ainsi que les éventuelles erreurs de permission ou de quota. Corrigez les identifiants si nécessaire.
+5. **Désactiver le fallback mock** – Pour vous assurer que seules les données réelles sont utilisées, définissez `VITE_ALLOW_MOCK_FALLBACK=false` avant de relancer `npm run dev`.
+
+Ces actions reproduisent les conditions de production tout en restant sur votre machine de développement. Une fois validées, vous pouvez déployer le proxy et l'interface sur votre infrastructure cible.
+
 ## Déploiement
 1. Construire le bundle : `npm run build`
 2. Déployer le dossier `dist` sur la plateforme de votre choix (Netlify, Vercel, etc.)
