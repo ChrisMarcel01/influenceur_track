@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Platform, platforms } from "@/lib/platforms";
+import { useInfluencerSearch } from "@/hooks/useInfluencerSearch";
 import {
   Download,
   Bell,
@@ -29,6 +31,7 @@ import {
   Sun,
   Moon,
   Languages,
+  Loader2,
 } from "lucide-react";
 import {
   LineChart,
@@ -45,9 +48,6 @@ import {
 
 const weeks = ["W-11","W-10","W-9","W-8","W-7","W-6","W-5","W-4","W-3","W-2","W-1","W0"];
 const engagementFormats = ["Photo", "Vidéo", "Story", "Live"] as const;
-const platforms = ["Instagram", "TikTok", "YouTube", "X"] as const;
-
-type Platform = typeof platforms[number];
 
 type PlatformAccount = { handle: string; displayName?: string };
 
@@ -302,6 +302,10 @@ const translations: Record<Language, Record<string, string>> = {
     "Abonnés (sélection)": "Followers (selection)",
     "Partager": "Share",
     "12 sem.": "12 wks",
+    "Suggestions d’influenceurs": "Influencer suggestions",
+    "Aucun résultat trouvé": "No results found",
+    "Engagement": "Engagement",
+    "Thématiques": "Topics",
   },
 };
 
@@ -433,17 +437,99 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [platform, setPlatform] = useState<Platform>("Instagram");
+  const { results, isLoading, error, hasQuery } = useInfluencerSearch({ platform, query: handle, limit: 6 });
+  const canSubmit = handle.trim().length > 0;
+  const shouldShowSuggestions = hasQuery && (isLoading || results.length > 0 || !!error);
   return (
     <div className={`flex ${inline?"items-center":"items-stretch"} gap-2 flex-wrap`}>
       <div className="relative grow min-w-[220px]">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
-        <Input value={handle} onChange={(e)=>setHandle(e.target.value)} placeholder={t("@handle (ex: @nom_sur_tiktok)")} className="pl-8"/>
+        <Input
+          value={handle}
+          onChange={(e)=>setHandle(e.target.value)}
+          placeholder={t("@handle (ex: @nom_sur_tiktok)")}
+          className="pl-8"
+        />
+        {shouldShowSuggestions && (
+          <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border bg-popover text-popover-foreground shadow-xl">
+            <div className="flex items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <span>{t("Suggestions d’influenceurs")}</span>
+              {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            </div>
+            <div className="px-3">
+              <Separator />
+            </div>
+            <div className="max-h-64 overflow-y-auto py-1">
+              {!isLoading && results.length === 0 && !error && (
+                <div className="px-3 py-2 text-sm text-muted-foreground">{t("Aucun résultat trouvé")}</div>
+              )}
+              {results.map(result => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onMouseDown={(evt) => evt.preventDefault()}
+                  onClick={() => {
+                    setHandle(result.handle);
+                    setDisplayName(result.displayName);
+                    setPlatform(result.platform);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-background text-sm font-medium">
+                    {result.displayName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-medium leading-tight">{result.displayName}</div>
+                    <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                      <span>{result.handle}</span>
+                      <span>•</span>
+                      <span>{result.platform}</span>
+                      {result.location && (
+                        <>
+                          <span>•</span>
+                          <span>{result.location}</span>
+                        </>
+                      )}
+                    </div>
+                    {result.topics?.length ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {result.topics.map(topic => (
+                          <Badge key={`${result.id}-${topic}`} variant="outline" className="rounded-full border-border px-2 py-0 text-[10px] uppercase tracking-wide text-muted-foreground">
+                            {topic}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="text-right text-xs text-muted-foreground leading-tight">
+                    <div>{result.followers.toLocaleString()} {t("Abonnés")}</div>
+                    <div>{result.engagementRate}% {t("Engagement")}</div>
+                  </div>
+                </button>
+              ))}
+              {error && (
+                <div className="px-3 py-2 text-sm text-destructive">{error}</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <select className="rounded-xl border p-2" value={platform} onChange={(e)=>setPlatform(e.target.value as Platform)}>
         {platforms.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
       <Input value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder={t("Nom affiché (ex: Amelia)")} className="min-w-[180px]"/>
-      <Button onClick={()=>{ if(handle.trim()){ addOrLinkInfluencer({ platform, handle, displayName }); setHandle(""); } }} className="gap-2"><Plus className="h-4 w-4"/>{t("Ajouter/Lier")}</Button>
+      <Button
+        onClick={() => {
+          if(!handle.trim()) return;
+          addOrLinkInfluencer({ platform, handle, displayName });
+          setHandle("");
+          setDisplayName("");
+        }}
+        className="gap-2"
+        disabled={!canSubmit}
+      >
+        <Plus className="h-4 w-4"/>{t("Ajouter/Lier")}
+      </Button>
     </div>
   );
 }
