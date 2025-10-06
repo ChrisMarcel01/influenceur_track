@@ -1,4 +1,4 @@
-import { Platform } from "@/lib/platforms";
+import { Platform, normalizePlatform } from "@/lib/platforms";
 import { request, shouldUseMock, isNotFound, toUserFacingError } from "./client";
 import {
   mockFetchInfluencerProfile,
@@ -55,6 +55,42 @@ export interface InfluencerProfileResponse {
   posts?: PostSummary[];
 }
 
+function normalizeProfileResponse(profile: InfluencerProfileResponse): InfluencerProfileResponse {
+  const normalizedAccounts: Partial<Record<Platform, PlatformAccount>> = {};
+  for (const [platformKey, account] of Object.entries(profile.accounts ?? {})) {
+    const normalized = normalizePlatform(platformKey);
+    if (!normalized || !account) continue;
+    normalizedAccounts[normalized] = account;
+  }
+
+  const normalizedPlatforms: InfluencerProfileResponse["platforms"] = {} as InfluencerProfileResponse["platforms"];
+  for (const [platformKey, data] of Object.entries(profile.platforms ?? {})) {
+    const normalized = normalizePlatform(platformKey);
+    if (!normalized || !data) continue;
+    normalizedPlatforms[normalized] = {
+      ...data,
+      posts: data.posts?.map((post) => ({ ...post, platform: normalizePlatform(post.platform) ?? normalized })) ?? data.posts,
+    };
+  }
+
+  const normalizedPosts = profile.posts
+    ? profile.posts
+        .map((post) => {
+          const normalized = normalizePlatform(post.platform) ?? null;
+          if (!normalized) return null;
+          return { ...post, platform: normalized };
+        })
+        .filter((post): post is PostSummary => post !== null)
+    : undefined;
+
+  return {
+    ...profile,
+    accounts: normalizedAccounts,
+    platforms: normalizedPlatforms,
+    posts: normalizedPosts,
+  };
+}
+
 function fallbackProfile(platform: Platform, handle: string): InfluencerProfileResponse {
   const profile = mockFetchInfluencerProfile({ platform, handle });
   if (profile) return profile;
@@ -76,10 +112,11 @@ export async function fetchInfluencerProfile({
   });
 
   try {
-    return await request<InfluencerProfileResponse>(`/influencers/profile?${params.toString()}`);
+    const response = await request<InfluencerProfileResponse>(`/influencers/profile?${params.toString()}`);
+    return normalizeProfileResponse(response);
   } catch (error) {
     if (shouldUseMock(error)) {
-      return fallbackProfile(platform, handle);
+      return normalizeProfileResponse(fallbackProfile(platform, handle));
     }
     if (isNotFound(error)) {
       throw new Error(`Aucun profil trouvé pour ${handle} sur ${platform}`);

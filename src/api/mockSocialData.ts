@@ -1,5 +1,5 @@
 import mockData from "@/data/mockSocialData.json";
-import { Platform, isPlatform } from "@/lib/platforms";
+import { Platform, isPlatform, normalizePlatform } from "@/lib/platforms";
 import type { InfluencerSearchResult } from "./influencerSearch";
 import type {
   FollowersPoint,
@@ -18,8 +18,6 @@ interface MockInfluencerRecord {
   profile: InfluencerProfileResponse;
 }
 
-type PlatformKey = Platform;
-
 interface SearchIndexEntry extends InfluencerSearchResult {
   normalizedHandle: string;
 }
@@ -32,6 +30,51 @@ function ensureArrayCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
+function normalizeAccounts(accounts: Record<string, PlatformAccount> | undefined) {
+  const normalized: Partial<Record<Platform, PlatformAccount>> = {};
+  if (!accounts) return normalized;
+  for (const [platformKey, account] of Object.entries(accounts)) {
+    const normalizedPlatform = normalizePlatform(platformKey);
+    if (!normalizedPlatform || !account) continue;
+    normalized[normalizedPlatform] = account as PlatformAccount;
+  }
+  return normalized;
+}
+
+function normalizePosts(posts: unknown, fallbackPlatform?: Platform): PostSummary[] | undefined {
+  if (!Array.isArray(posts)) return undefined;
+  const normalized = posts
+    .map((post) => {
+      if (typeof post !== "object" || post === null) return null;
+      const raw = post as Record<string, unknown>;
+      const platform = normalizePlatform((raw.platform as string | undefined) ?? fallbackPlatform);
+      if (!platform) return null;
+      return {
+        ...(raw as unknown as PostSummary),
+        platform,
+      } as PostSummary;
+    })
+    .filter((value): value is PostSummary => value !== null);
+  return normalized.length ? normalized : undefined;
+}
+
+function normalizePlatforms(platformsInput: Record<string, unknown> | undefined) {
+  const normalized: InfluencerProfileResponse["platforms"] = {} as InfluencerProfileResponse["platforms"];
+  if (!platformsInput) return normalized;
+  for (const [platformKey, value] of Object.entries(platformsInput)) {
+    const normalizedPlatform = normalizePlatform(platformKey);
+    if (!normalizedPlatform) continue;
+    const platformData = value as InfluencerProfileResponse["platforms"][Platform];
+    if (!platformData) continue;
+    const posts = normalizePosts(platformData.posts, normalizedPlatform);
+    normalized[normalizedPlatform] = {
+      ...platformData,
+      posts,
+    };
+  }
+  return normalized;
+}
+
 const influencers: MockInfluencerRecord[] = mockData.influencers.map((item) => ({
   id: item.id,
   displayName: item.displayName,
@@ -40,10 +83,10 @@ const influencers: MockInfluencerRecord[] = mockData.influencers.map((item) => (
   verified: item.verified,
   profile: {
     displayName: item.displayName,
-    accounts: item.accounts as Partial<Record<PlatformKey, PlatformAccount>>,
+    accounts: normalizeAccounts(item.accounts as Record<string, PlatformAccount> | undefined),
     summary: item.summary,
-    platforms: item.platforms as InfluencerProfileResponse["platforms"],
-    posts: item.posts as PostSummary[] | undefined,
+    platforms: normalizePlatforms(item.platforms as Record<string, unknown> | undefined),
+    posts: normalizePosts(item.posts, undefined),
   },
 }));
 

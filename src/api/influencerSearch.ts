@@ -1,4 +1,4 @@
-import { Platform } from "@/lib/platforms";
+import { Platform, normalizePlatform } from "@/lib/platforms";
 import { request, shouldUseMock, toUserFacingError } from "./client";
 import { mockSearchInfluencers } from "./mockSocialData";
 
@@ -38,7 +38,15 @@ export async function searchInfluencers({
 
   try {
     const result = await request<{ results: InfluencerSearchResult[] }>(`/search/influencers?${params.toString()}`);
-    return result.results ?? [];
+    return (
+      result.results
+        ?.map((item) => {
+          const normalizedPlatform = normalizePlatform(item.platform as string);
+          if (!normalizedPlatform) return null;
+          return { ...item, platform: normalizedPlatform };
+        })
+        .filter((item): item is InfluencerSearchResult => item !== null) ?? []
+    );
   } catch (error) {
     if (shouldUseMock(error)) {
       return mockSearchInfluencers({ platform, query: normalizedQuery, limit });

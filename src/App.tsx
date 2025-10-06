@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Platform, platforms } from "@/lib/platforms";
+import { Platform, platforms, platformOptions as platformChoices, getPlatformLabel } from "@/lib/platforms";
 import { useInfluencerSearch } from "@/hooks/useInfluencerSearch";
 import {
   fetchInfluencerProfile,
@@ -464,7 +464,7 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
   const { t } = useTranslation();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [platform, setPlatform] = useState<Platform>("Instagram");
+  const [platform, setPlatform] = useState<Platform>(platformChoices[0].id);
   const { results, isLoading, error, hasQuery } = useInfluencerSearch({ platform, query: handle, limit: 6 });
   const canSubmit = handle.trim().length > 0;
   const shouldShowSuggestions = hasQuery && (isLoading || results.length > 0 || !!error);
@@ -525,7 +525,7 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
                     <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
                       <span>{result.handle}</span>
                       <span>•</span>
-                      <span>{result.platform}</span>
+                      <span>{getPlatformLabel(result.platform)}</span>
                       {result.location && (
                         <>
                           <span>•</span>
@@ -557,7 +557,9 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
         )}
       </div>
       <select className="rounded-xl border p-2" value={platform} onChange={(e)=>setPlatform(e.target.value as Platform)}>
-        {platforms.map(p => <option key={p} value={p}>{p}</option>)}
+        {platformChoices.map(({ id, label }) => (
+          <option key={id} value={id}>{label}</option>
+        ))}
       </select>
       <Input value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder={t("Nom affiché (ex: Amelia)")} className="min-w-[180px]"/>
       <Button
@@ -710,7 +712,9 @@ function InfluencerDetail(){
   const { entities, growth, engagement, platformMetrics, posts, loading, errors, refreshInfluencer } = useAppState();
   const { t } = useTranslation();
   const [selectedName, setSelectedName] = useState(entities[0]?.name || "");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<Record<Platform, boolean>>({ Instagram:true, TikTok:true, YouTube:true, X:true });
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Record<Platform, boolean>>(
+    () => Object.fromEntries(platforms.map((pl) => [pl, true])) as Record<Platform, boolean>,
+  );
   useEffect(() => {
     if (!entities.length) {
       setSelectedName("");
@@ -773,7 +777,7 @@ function InfluencerDetail(){
                 {platforms.map(pl => (
                   <label key={pl} className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm cursor-pointer">
                     <input type="checkbox" checked={!!selectedPlatforms[pl]} onChange={()=>setSelectedPlatforms(prev => ({...prev, [pl]: !prev[pl]}))}/>
-                    {pl}
+                    {getPlatformLabel(pl)}
                   </label>
                 ))}
               </div>
@@ -800,7 +804,7 @@ function InfluencerDetail(){
             const acct = entity?.accounts[pl];
             return (
               <div key={pl} className="rounded-xl border p-3">
-                <div className="text-xs text-muted-foreground">{pl}</div>
+                <div className="text-xs text-muted-foreground">{getPlatformLabel(pl)}</div>
                 <div className="font-medium">{acct?.displayName || entity?.name}</div>
                 <div className="text-muted-foreground">{acct?.handle || "—"}</div>
               </div>
@@ -838,13 +842,13 @@ function InfluencerDetail(){
           const list = posts[selectedName]?.[pl] || [];
           return (
             <Card key={pl} className="rounded-2xl shadow-md">
-              <CardHeader><SectionTitle icon={Trophy} title={`${t("10 derniers posts")} — ${pl}`}/></CardHeader>
+              <CardHeader><SectionTitle icon={Trophy} title={`${t("10 derniers posts")} — ${getPlatformLabel(pl)}`}/></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {list.slice(0,10).map(p => (
                     <div key={p.id} className="rounded-2xl border p-3">
                       <div className="flex items-center justify-between">
-                        <Badge className="rounded-full">{pl}</Badge>
+                        <Badge className="rounded-full">{getPlatformLabel(pl)}</Badge>
                         <div className="text-xs text-muted-foreground">{new Date(p.date).toLocaleDateString()}</div>
                       </div>
                       <div className="mt-2 font-medium line-clamp-2">{p.title}</div>
@@ -894,8 +898,13 @@ function Compare(){
     return e?.accounts[pl]?.handle || "";
   };
 
-  const platformOptions: { value: "all" | Platform; label: string }[] = [{ value: "all", label: t("Tous") }, ...platforms.map(pl => ({ value: pl, label: pl }))];
-  const followersHeader = platform === "all" ? `${t("Abonnés")} (${t("Tous")})` : `${t("Abonnés")} (${platform})`;
+  const platformFilters: { value: "all" | Platform; label: string }[] = [
+    { value: "all", label: t("Tous") },
+    ...platforms.map((pl) => ({ value: pl, label: getPlatformLabel(pl) })),
+  ];
+  const followersHeader = platform === "all"
+    ? `${t("Abonnés")} (${t("Tous")})`
+    : `${t("Abonnés")} (${getPlatformLabel(platform)})`;
 
   return (
     <div className="space-y-6">
@@ -913,7 +922,7 @@ function Compare(){
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {platformOptions.map(option => (
+        {platformFilters.map(option => (
           <button key={option.value} onClick={()=>setPlatform(option.value)} className={`px-3 py-1 rounded-full border text-sm ${platform===option.value?"bg-primary text-primary-foreground":"bg-background"}`}>{option.label}</button>
         ))}
       </div>
