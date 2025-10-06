@@ -85,3 +85,15 @@ Les données de démonstration sont stockées dans `src/data/mockSocialData.json
 2. Déployer le dossier `dist` sur la plateforme de votre choix (Netlify, Vercel, etc.)
 3. Configurer la variable d'environnement `VITE_SOCIAL_API_URL` vers votre API publique si vous souhaitez utiliser des données temps réel.
 
+## Prochaines étapes suggérées
+
+Pour aller au-delà de l'intégration de base, voici l'ordre recommandé :
+
+1. **Vérifier les identifiants live** – Testez chaque connecteur via `npm run live:api` en ciblant un handle réel par plateforme pour confirmer que vos tokens/clé API sont valides (erreurs 4xx sont souvent liées aux permissions ou à des scopes manquants).
+2. **Activer la persistance** – Une fois les données récupérées correctement, ajoutez un stockage (base de données ou cache) côté backend pour historiser les métriques et éviter de solliciter inutilement les APIs sociales à chaque chargement.
+3. **Brancher l'interface sur votre backend** – Déployez votre passerelle sociale, exposez les mêmes routes que celles attendues par `src/api` puis pointez `VITE_SOCIAL_API_URL` vers cette URL.
+4. **Surveiller et journaliser** – Ajoutez de la télémétrie (logs structurés, traces) dans `scripts/social-live-api.mjs` ou votre implémentation pour faciliter le diagnostic en production.
+5. **Durcir la sécurité** – Lorsque vous hébergez le proxy, sécurisez l'accès (authentification, quotas) et stockez les secrets dans un coffre-fort ou un service de gestion de secrets.
+
+Ces étapes garantissent une transition progressive d'une maquette alimentée par des données mockées vers une exploitation fiable des données sociales réelles.
+
