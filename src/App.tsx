@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useContext, createContext } from "react";
+import React, { useMemo, useState, useContext, createContext, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -26,6 +26,9 @@ import {
   FileText,
   Share2,
   Plus,
+  Sun,
+  Moon,
+  Languages,
 } from "lucide-react";
 import {
   LineChart,
@@ -168,6 +171,149 @@ function score({ weeklyDelta, avgEngagement, posts7d }:{ weeklyDelta:number; avg
 const solidColor = (name:string) => { let h=0; for(let i=0;i<name.length;i++){ h=(h*31+name.charCodeAt(i))>>>0; } h%=360; return `hsl(${h}, 70%, 50%)`; };
 const softColor = (name:string, a=0.08) => { let h=0; for(let i=0;i<name.length;i++){ h=(h*31+name.charCodeAt(i))>>>0; } h%=360; return `hsla(${h}, 70%, 50%, ${a})`; };
 
+type ThemeMode = "light" | "dark";
+type Language = "fr" | "en";
+
+interface PreferencesContextValue {
+  theme: ThemeMode;
+  setTheme: React.Dispatch<React.SetStateAction<ThemeMode>>;
+  toggleTheme: () => void;
+  language: Language;
+  setLanguage: React.Dispatch<React.SetStateAction<Language>>;
+  toggleLanguage: () => void;
+}
+
+const PreferencesContext = createContext<PreferencesContextValue | null>(null);
+
+const getInitialTheme = (): ThemeMode => {
+  if (typeof window === "undefined") return "light";
+  const stored = window.localStorage.getItem("theme-mode");
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+};
+
+const getInitialLanguage = (): Language => {
+  if (typeof window === "undefined") return "fr";
+  const stored = window.localStorage.getItem("language");
+  return stored === "en" ? "en" : "fr";
+};
+
+function PreferencesProvider({ children }:{ children:React.ReactNode }) {
+  const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
+  const [language, setLanguage] = useState<Language>(() => getInitialLanguage());
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("theme-mode", theme);
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("language", language);
+    }
+  }, [language]);
+
+  const toggleTheme = useCallback(() => setTheme(prev => prev === "dark" ? "light" : "dark"), []);
+  const toggleLanguage = useCallback(() => setLanguage(prev => prev === "fr" ? "en" : "fr"), []);
+
+  const value = useMemo(() => ({ theme, setTheme, toggleTheme, language, setLanguage, toggleLanguage }), [theme, language, toggleTheme, toggleLanguage]);
+
+  return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
+}
+
+function usePreferences(){
+  const ctx = useContext(PreferencesContext);
+  if (!ctx) throw new Error("PreferencesContext missing");
+  return ctx;
+}
+
+const translations: Record<Language, Record<string, string>> = {
+  fr: {},
+  en: {
+    "Alertes": "Alerts",
+    "Alias / handles par réseau": "Aliases / handles per network",
+    "Ajoute au moins un influenceur dans le Dashboard ou ici.": "Add at least one influencer in the Dashboard or here.",
+    "Ajoute un @handle et lie-le à un nom": "Add a @handle and link it to a name",
+    "Ajouter / lier des comptes (par @handle)": "Add / link accounts (by @handle)",
+    "Ajouter/Lier": "Add/Link",
+    "Baisse d’engagement": "Engagement drop",
+    "Comparateur": "Comparator",
+    "Comparateur (par réseau social)": "Comparator (by social network)",
+    "Comparatif": "Comparative",
+    "Conseil": "Advice",
+    "Croissance 40% · Engagement 40% · Volume 20%": "Growth 40% · Engagement 40% · Volume 20%",
+    "Dashboard": "Dashboard",
+    "Destinataires": "Recipients",
+    "Détail influenceur": "Influencer detail",
+    "Engagement moyen": "Average engagement",
+    "Engagement moyen par format (sélection)": "Average engagement by format (selection)",
+    "Enregistrer": "Save",
+    "Évolution (12 semaines)": "Evolution (12 weeks)",
+    "Évolution des abonnés (12 semaines)": "Followers evolution (12 weeks)",
+    "Exporter": "Export",
+    "Exporter Excel": "Export Excel",
+    "Fenêtre (h)": "Window (h)",
+    "Filtrer": "Filter",
+    "Générer un PDF (démo)": "Generate a PDF (demo)",
+    "Hebdomadaire": "Weekly",
+    "InfluenceTrack": "InfluenceTrack",
+    "Influenceur": "Influencer",
+    "Influenceurs à visualiser": "Influencers to display",
+    "Likes moyens (10 posts)": "Average likes (10 posts)",
+    "Mode clair": "Light mode",
+    "Mode sombre": "Dark mode",
+    "Langue": "Language",
+    "MVP • Alias par réseau • Maquettes interactives": "MVP • Alias per network • Interactive mockups",
+    "Mensuel": "Monthly",
+    "Modèle marque blanche incluant sommaire, KPIs, graphiques, top posts.": "White-label template including summary, KPIs, charts, top posts.",
+    "Nom affiché (ex: Amelia)": "Display name (e.g. Amelia)",
+    "Notifications": "Notifications",
+    "Notifications & alertes": "Notifications & alerts",
+    "Notifications push": "Push notifications",
+    "OK": "OK",
+    "Perte d’abonnés": "Followers loss",
+    "Période (sem.)": "Period (wks)",
+    "Post performant": "High-performing post",
+    "Posts (7j)": "Posts (7d)",
+    "Quantile": "Quantile",
+    "Quantile de référence": "Reference quantile",
+    "Rapports": "Reports",
+    "Rapports automatiques": "Automated reports",
+    "Recommandé": "Recommended",
+    "Réseaux sociaux": "Social networks",
+    "Score": "Score",
+    "Seuil (Δ hebdo)": "Threshold (weekly Δ)",
+    "Sélection": "Selection",
+    "Télécharger PDF": "Download PDF",
+    "Top posts récents": "Recent top posts",
+    "Tous": "All",
+    "@handle (ex: @nom_sur_tiktok)": "@handle (e.g. @name_on_tiktok)",
+    "Δ hebdo": "Weekly Δ",
+    "Δ hebdo (sélection)": "Weekly Δ (selection)",
+    "Abonnés": "Followers",
+    "Abonnés (sélection)": "Followers (selection)",
+    "Partager": "Share",
+    "12 sem.": "12 wks",
+  },
+};
+
+function useTranslation(){
+  const { language } = usePreferences();
+  const t = useCallback((text: string) => {
+    if (language === "fr") return text;
+    return translations.en[text] ?? text;
+  }, [language]);
+  return { t, language };
+}
+
 interface AppState {
   entities: InfluencerMeta[];
   selected: string[];
@@ -283,6 +429,7 @@ function EntityChips(){
 
 function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
   const { addOrLinkInfluencer } = useAppState();
+  const { t } = useTranslation();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [platform, setPlatform] = useState<Platform>("Instagram");
@@ -290,19 +437,20 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
     <div className={`flex ${inline?"items-center":"items-stretch"} gap-2 flex-wrap`}>
       <div className="relative grow min-w-[220px]">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
-        <Input value={handle} onChange={(e)=>setHandle(e.target.value)} placeholder="@handle (ex: @nom_sur_tiktok)" className="pl-8"/>
+        <Input value={handle} onChange={(e)=>setHandle(e.target.value)} placeholder={t("@handle (ex: @nom_sur_tiktok)")} className="pl-8"/>
       </div>
       <select className="rounded-xl border p-2" value={platform} onChange={(e)=>setPlatform(e.target.value as Platform)}>
         {platforms.map(p => <option key={p} value={p}>{p}</option>)}
       </select>
-      <Input value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder="Nom affiché (ex: Amelia)" className="min-w-[180px]"/>
-      <Button onClick={()=>{ if(handle.trim()){ addOrLinkInfluencer({ platform, handle, displayName }); setHandle(""); } }} className="gap-2"><Plus className="h-4 w-4"/>Ajouter/Lier</Button>
+      <Input value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder={t("Nom affiché (ex: Amelia)")} className="min-w-[180px]"/>
+      <Button onClick={()=>{ if(handle.trim()){ addOrLinkInfluencer({ platform, handle, displayName }); setHandle(""); } }} className="gap-2"><Plus className="h-4 w-4"/>{t("Ajouter/Lier")}</Button>
     </div>
   );
 }
 
 function Dashboard(){
   const { selected, growth, engagement, platformMetrics } = useAppState();
+  const { t } = useTranslation();
 
   const growthCombined = useMemo(()=> weeks.map((w, i)=>{ const row:any = { week:w }; selected.forEach(n=> row[n] = (growth[n]?.[i] ?? 0)); return row; }), [selected, growth]);
   const engagementCombined = useMemo(()=> engagementFormats.map(fmt=>{ const row:any = { name:fmt }; selected.forEach(n=> row[n] = (engagement[n]?.[fmt] ?? 0)); return row; }), [selected, engagement]);
@@ -318,7 +466,7 @@ function Dashboard(){
     <div className="space-y-6">
       <Card className="rounded-2xl shadow-md">
         <CardHeader>
-          <SectionTitle icon={Users} title="Influenceurs à visualiser" actions={<span className="text-xs text-muted-foreground">Ajoute un @handle et lie-le à un nom</span>} />
+          <SectionTitle icon={Users} title={t("Influenceurs à visualiser")} actions={<span className="text-xs text-muted-foreground">{t("Ajoute un @handle et lie-le à un nom")}</span>} />
         </CardHeader>
         <CardContent className="space-y-3">
           <AddInfluencerControl />
@@ -327,15 +475,15 @@ function Dashboard(){
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Stat label="Abonnés (sélection)" value={lastFollowersSum.toLocaleString()} trend={deltaPct} />
-        <Stat label="Δ hebdo (sélection)" value={`${delta>0?"+":""}${delta.toLocaleString()}`} trend={deltaPct} />
-        <Stat label="Posts (7j)" value={posts7dTotal.toString()} />
-        <Stat label="Likes moyens (10 posts)" value={avgLikes.toLocaleString()} trend={1.2} />
+        <Stat label={t("Abonnés (sélection)")} value={lastFollowersSum.toLocaleString()} trend={deltaPct} />
+        <Stat label={t("Δ hebdo (sélection)")} value={`${delta>0?"+":""}${delta.toLocaleString()}`} trend={deltaPct} />
+        <Stat label={t("Posts (7j)")} value={posts7dTotal.toString()} />
+        <Stat label={t("Likes moyens (10 posts)")} value={avgLikes.toLocaleString()} trend={1.2} />
       </div>
 
       <Card className="rounded-2xl shadow-md">
         <CardHeader>
-          <SectionTitle icon={LineIcon} title="Évolution des abonnés (12 semaines)" actions={<div className="flex items-center gap-2"><Button variant="outline" size="sm"><Calendar className="h-4 w-4 mr-2"/>12 sem.</Button><Button size="sm" className="gap-2"><Download className="h-4 w-4"/>Exporter</Button></div>} />
+          <SectionTitle icon={LineIcon} title={t("Évolution des abonnés (12 semaines)")} actions={<div className="flex items-center gap-2"><Button variant="outline" size="sm"><Calendar className="h-4 w-4 mr-2"/>{t("12 sem.")}</Button><Button size="sm" className="gap-2"><Download className="h-4 w-4"/>{t("Exporter")}</Button></div>} />
         </CardHeader>
         <CardContent>
           <div className="h-64">
@@ -355,7 +503,7 @@ function Dashboard(){
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="rounded-2xl shadow-md lg:col-span-1">
-          <CardHeader><SectionTitle icon={BarChart2} title="Engagement moyen par format (sélection)"/></CardHeader>
+          <CardHeader><SectionTitle icon={BarChart2} title={t("Engagement moyen par format (sélection)")}/></CardHeader>
           <CardContent>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -373,7 +521,7 @@ function Dashboard(){
         </Card>
         <Card className="rounded-2xl shadow-md lg:col-span-2">
           <CardHeader>
-            <SectionTitle icon={Trophy} title="Top posts récents" actions={<Button variant="outline" size="sm" className="gap-2"><Filter className="h-4 w-4"/>Filtrer</Button>}/>
+            <SectionTitle icon={Trophy} title={t("Top posts récents")} actions={<Button variant="outline" size="sm" className="gap-2"><Filter className="h-4 w-4"/>{t("Filtrer")}</Button>}/>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -389,7 +537,7 @@ function Dashboard(){
                   <div className="flex items-center gap-6 text-sm">
                     <div className="flex items-center gap-1"><Star className="h-4 w-4"/> {p.likes.toLocaleString()}</div>
                     <div className="flex items-center gap-1"><ChatBubble/> {p.comments.toLocaleString()}</div>
-                    <Button variant="ghost" size="sm" className="gap-2"><Share2 className="h-4 w-4"/>Partager</Button>
+                    <Button variant="ghost" size="sm" className="gap-2"><Share2 className="h-4 w-4"/>{t("Partager")}</Button>
                   </div>
                 </div>
               ))}
@@ -403,6 +551,7 @@ function Dashboard(){
 
 function InfluencerDetail(){
   const { entities, growth, engagement, platformMetrics, posts } = useAppState();
+  const { t } = useTranslation();
   const [selectedName, setSelectedName] = useState(entities[0]?.name || "");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Record<Platform, boolean>>({ Instagram:true, TikTok:true, YouTube:true, X:true });
   const entity = entities.find(e => e.name===selectedName);
@@ -418,11 +567,11 @@ function InfluencerDetail(){
   return (
     <div className="space-y-6">
       <Card className="rounded-2xl shadow-md">
-        <CardHeader><SectionTitle icon={Users} title="Sélection"/></CardHeader>
+        <CardHeader><SectionTitle icon={Users} title={t("Sélection")}/></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label>Influenceur</Label>
+              <Label>{t("Influenceur")}</Label>
               <select className="mt-2 w-full rounded-xl border p-2" value={selectedName} onChange={(e)=>setSelectedName(e.target.value)}>
                 {entities.map(e => (
                   <option key={e.name} value={e.name}>{e.name}</option>
@@ -430,7 +579,7 @@ function InfluencerDetail(){
               </select>
             </div>
             <div className="md:col-span-2">
-              <Label>Réseaux sociaux</Label>
+              <Label>{t("Réseaux sociaux")}</Label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {platforms.map(pl => (
                   <label key={pl} className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm cursor-pointer">
@@ -445,7 +594,7 @@ function InfluencerDetail(){
       </Card>
 
       <Card className="rounded-2xl shadow-md">
-        <CardHeader><CardTitle className="text-base">Alias / handles par réseau</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">{t("Alias / handles par réseau")}</CardTitle></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
           {platforms.map(pl => {
             const acct = entity?.accounts[pl];
@@ -461,14 +610,14 @@ function InfluencerDetail(){
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Stat label="Abonnés" value={followersLast.toLocaleString()} trend={deltaPct} />
-        <Stat label="Δ hebdo" value={`${delta>0?"+":""}${delta.toLocaleString()}`} trend={deltaPct} />
-        <Stat label="Posts (7j)" value={postsCount.toString()} />
-        <Stat label="Engagement moyen" value={`${engagementAvg}%`} trend={0.4} />
+        <Stat label={t("Abonnés")} value={followersLast.toLocaleString()} trend={deltaPct} />
+        <Stat label={t("Δ hebdo")} value={`${delta>0?"+":""}${delta.toLocaleString()}`} trend={deltaPct} />
+        <Stat label={t("Posts (7j)")} value={postsCount.toString()} />
+        <Stat label={t("Engagement moyen")} value={`${engagementAvg}%`} trend={0.4} />
       </div>
 
       <Card className="rounded-2xl shadow-md">
-        <CardHeader><SectionTitle icon={LineIcon} title={`Évolution (12 semaines) — ${selectedName}`}/></CardHeader>
+        <CardHeader><SectionTitle icon={LineIcon} title={`${t("Évolution (12 semaines)")} — ${selectedName}`}/></CardHeader>
         <CardContent>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -489,7 +638,7 @@ function InfluencerDetail(){
           const list = posts[selectedName]?.[pl] || [];
           return (
             <Card key={pl} className="rounded-2xl shadow-md">
-              <CardHeader><SectionTitle icon={Trophy} title={`10 derniers posts — ${pl}`}/></CardHeader>
+              <CardHeader><SectionTitle icon={Trophy} title={`${t("10 derniers posts")} — ${pl}`}/></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {list.slice(0,10).map(p => (
@@ -517,11 +666,12 @@ function InfluencerDetail(){
 
 function Compare(){
   const { entities, selected, platformMetrics } = useAppState();
-  const [platform, setPlatform] = useState<"Tous"|Platform>("Tous");
+  const { t } = useTranslation();
+  const [platform, setPlatform] = useState<"all"|Platform>("all");
 
   const rows = useMemo(()=>{
     if (selected.length===0) return [] as { name:string; followers:number; weeklyDelta:number; avgEngagement:number; posts7d:number; score:number }[];
-    if (platform === "Tous"){
+    if (platform === "all"){
       return selected.map(name => {
         const pm = platformMetrics[name];
         const followers = platforms.reduce((a,pl)=>a + (pm?.[pl]?.followers ?? 0), 0);
@@ -544,26 +694,27 @@ function Compare(){
     return e?.accounts[pl]?.handle || "";
   };
 
-  const platformOptions: ("Tous" | Platform)[] = ["Tous", ...platforms];
+  const platformOptions: { value: "all" | Platform; label: string }[] = [{ value: "all", label: t("Tous") }, ...platforms.map(pl => ({ value: pl, label: pl }))];
+  const followersHeader = platform === "all" ? `${t("Abonnés")} (${t("Tous")})` : `${t("Abonnés")} (${platform})`;
 
   return (
     <div className="space-y-6">
       <Card className="rounded-2xl shadow-md">
-        <CardHeader><SectionTitle icon={Users} title="Ajouter / lier des comptes (par @handle)"/></CardHeader>
+        <CardHeader><SectionTitle icon={Users} title={t("Ajouter / lier des comptes (par @handle)")}/></CardHeader>
         <CardContent><AddInfluencerControl inline/></CardContent>
       </Card>
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-semibold">Comparateur (par réseau social)</h3>
-          <p className="text-sm text-muted-foreground">Croissance 40% · Engagement 40% · Volume 20%</p>
+          <h3 className="text-xl font-semibold">{t("Comparateur (par réseau social)")}</h3>
+          <p className="text-sm text-muted-foreground">{t("Croissance 40% · Engagement 40% · Volume 20%")}</p>
         </div>
-        <div className="flex items-center gap-2"><Button variant="outline" className="gap-2"><Download className="h-4 w-4"/>Exporter</Button></div>
+        <div className="flex items-center gap-2"><Button variant="outline" className="gap-2"><Download className="h-4 w-4"/>{t("Exporter")}</Button></div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {platformOptions.map(pl => (
-          <button key={pl} onClick={()=>setPlatform(pl)} className={`px-3 py-1 rounded-full border text-sm ${platform===pl?"bg-primary text-primary-foreground":"bg-background"}`}>{pl}</button>
+        {platformOptions.map(option => (
+          <button key={option.value} onClick={()=>setPlatform(option.value)} className={`px-3 py-1 rounded-full border text-sm ${platform===option.value?"bg-primary text-primary-foreground":"bg-background"}`}>{option.label}</button>
         ))}
       </div>
 
@@ -580,18 +731,18 @@ function Compare(){
 
       <div className="overflow-auto rounded-2xl border">
         {rows.length===0 ? (
-          <div className="p-6 text-sm text-muted-foreground">Ajoute au moins un influenceur dans le Dashboard ou ici.</div>
+          <div className="p-6 text-sm text-muted-foreground">{t("Ajoute au moins un influenceur dans le Dashboard ou ici.")}</div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="text-left p-3">Influenceur</th>
-                <th className="text-left p-3">Abonnés{platform!=="Tous"?` (${platform})`:" (total)"}</th>
-                <th className="text-left p-3">Δ hebdo</th>
-                <th className="text-left p-3">Engagement moyen</th>
-                <th className="text-left p-3">Posts (7j)</th>
-                <th className="text-left p-3">Score</th>
-                <th className="text-left p-3">Conseil</th>
+                <th className="text-left p-3">{t("Influenceur")}</th>
+                <th className="text-left p-3">{followersHeader}</th>
+                <th className="text-left p-3">{t("Δ hebdo")}</th>
+                <th className="text-left p-3">{t("Engagement moyen")}</th>
+                <th className="text-left p-3">{t("Posts (7j)")}</th>
+                <th className="text-left p-3">{t("Score")}</th>
+                <th className="text-left p-3">{t("Conseil")}</th>
               </tr>
             </thead>
             <tbody>
@@ -600,7 +751,7 @@ function Compare(){
                   <td className="p-3 font-medium">
                     <span className="inline-flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: solidColor(r.name) }} />
-                      {platform === "Tous" ? r.name : (<span>{r.name} <span className="text-muted-foreground">({handleFor(r.name, platform as Platform)})</span></span>)}
+                      {platform === "all" ? r.name : (<span>{r.name} <span className="text-muted-foreground">({handleFor(r.name, platform)})</span></span>)}
                     </span>
                   </td>
                   <td className="p-3">{r.followers.toLocaleString()}</td>
@@ -608,7 +759,7 @@ function Compare(){
                   <td className="p-3">{r.avgEngagement}%</td>
                   <td className="p-3">{r.posts7d}</td>
                   <td className="p-3 font-semibold">{r.score}</td>
-                  <td className="p-3">{top && r.name===top.name ? (<Badge className="bg-emerald-500 hover:bg-emerald-500">Recommandé</Badge>) : (<Badge variant="outline">OK</Badge>)}</td>
+                  <td className="p-3">{top && r.name===top.name ? (<Badge className="bg-emerald-500 hover:bg-emerald-500">{t("Recommandé")}</Badge>) : (<Badge variant="outline">{t("OK")}</Badge>)}</td>
                 </tr>
               ))}
             </tbody>
@@ -620,18 +771,19 @@ function Compare(){
 }
 
 function Reports(){
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
-      <SectionTitle icon={FileText} title="Rapports automatiques" actions={<Button className="gap-2"><FileText className="h-4 w-4"/>Générer un PDF (démo)</Button>} />
+      <SectionTitle icon={FileText} title={t("Rapports automatiques")} actions={<Button className="gap-2"><FileText className="h-4 w-4"/>{t("Générer un PDF (démo)")}</Button>} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {["Hebdomadaire","Mensuel","Comparatif"].map(type => (
           <Card key={type} className="rounded-2xl shadow-md">
-            <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4"/>{type}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4"/>{t(type)}</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-sm text-muted-foreground">Modèle marque blanche incluant sommaire, KPIs, graphiques, top posts.</div>
+              <div className="text-sm text-muted-foreground">{t("Modèle marque blanche incluant sommaire, KPIs, graphiques, top posts.")}</div>
               <div className="flex items-center gap-3">
-                <Button variant="outline" className="gap-2"><FileSpreadsheet className="h-4 w-4"/>Exporter Excel</Button>
-                <Button className="gap-2"><Download className="h-4 w-4"/>Télécharger PDF</Button>
+                <Button variant="outline" className="gap-2"><FileSpreadsheet className="h-4 w-4"/>{t("Exporter Excel")}</Button>
+                <Button className="gap-2"><Download className="h-4 w-4"/>{t("Télécharger PDF")}</Button>
               </div>
             </CardContent>
           </Card>
@@ -642,95 +794,117 @@ function Reports(){
 }
 
 function Alerts(){
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <SectionTitle icon={Bell} title="Notifications & alertes" />
-        <div className="flex items-center gap-2"><Label htmlFor="push">Notifications push</Label><Switch id="push" defaultChecked/></div>
+        <SectionTitle icon={Bell} title={t("Notifications & alertes")} />
+        <div className="flex items-center gap-2"><Label htmlFor="push">{t("Notifications push")}</Label><Switch id="push" defaultChecked/></div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="rounded-2xl shadow-md">
-          <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4"/>Perte d’abonnés</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle className="h-4 w-4"/>{t("Perte d’abonnés")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Seuil (Δ hebdo)</Label><Input defaultValue={-2} type="number"/></div>
-              <div><Label>Destinataires</Label><Input defaultValue="marketing@exemple.com"/></div>
+              <div><Label>{t("Seuil (Δ hebdo)")}</Label><Input defaultValue={-2} type="number"/></div>
+              <div><Label>{t("Destinataires")}</Label><Input defaultValue="marketing@exemple.com"/></div>
             </div>
-            <Button className="w-full">Enregistrer</Button>
+            <Button className="w-full">{t("Enregistrer")}</Button>
           </CardContent>
         </Card>
         <Card className="rounded-2xl shadow-md">
-          <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4"/>Post performant</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="flex items-center gap-2"><TrendingUp className="h-4 w-4"/>{t("Post performant")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Quantile</Label><Input defaultValue={90} type="number"/></div>
-              <div><Label>Fenêtre (h)</Label><Input defaultValue={24} type="number"/></div>
+              <div><Label>{t("Quantile")}</Label><Input defaultValue={90} type="number"/></div>
+              <div><Label>{t("Fenêtre (h)")}</Label><Input defaultValue={24} type="number"/></div>
             </div>
-            <Button className="w-full">Enregistrer</Button>
+            <Button className="w-full">{t("Enregistrer")}</Button>
           </CardContent>
         </Card>
       </div>
 
       <Card className="rounded-2xl shadow-md">
-        <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-4 w-4"/>Baisse d’engagement</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-4 w-4"/>{t("Baisse d’engagement")}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <div><Label>Quantile de référence</Label><Input defaultValue={25} type="number"/></div>
-            <div><Label>Période (sem.)</Label><Input defaultValue={8} type="number"/></div>
-            <div><Label>Destinataires</Label><Input defaultValue="ops@exemple.com"/></div>
+            <div><Label>{t("Quantile de référence")}</Label><Input defaultValue={25} type="number"/></div>
+            <div><Label>{t("Période (sem.)")}</Label><Input defaultValue={8} type="number"/></div>
+            <div><Label>{t("Destinataires")}</Label><Input defaultValue="ops@exemple.com"/></div>
           </div>
-          <Button className="w-full">Enregistrer</Button>
+          <Button className="w-full">{t("Enregistrer")}</Button>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-export default function App(){
+function AppShell(){
+  const { t } = useTranslation();
+  const { theme, toggleTheme, toggleLanguage, language } = usePreferences();
   const [active, setActive] = useState("dashboard");
+  const isDark = theme === "dark";
+  const languageLabel = language === "fr" ? "FR → EN" : "EN → FR";
+
   return (
-    <AppStateProvider>
-      <div className="min-h-screen bg-gradient-to-b from-background to-background p-4 md:p-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="rounded-3xl border bg-card shadow-sm">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-6">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-500" />
-                <div>
-                  <div className="text-xl font-semibold">InfluenceTrack</div>
-                  <div className="text-xs text-muted-foreground">MVP • Alias par réseau • Maquettes interactives</div>
-                </div>
-              </div>
-              <div className="flex flex-col md:flex-row gap-2 md:items-center md:gap-3 w-full md:w-auto">
-                <AddInfluencerControl inline/>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="gap-2"><Download className="h-4 w-4"/>Exporter</Button>
-                  <Button variant="outline" size="sm" className="gap-2"><Bell className="h-4 w-4"/>Notifications</Button>
-                </div>
+    <div className="min-h-screen bg-gradient-to-b from-background to-background p-4 md:p-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="rounded-3xl border bg-card shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-amber-500" />
+              <div>
+                <div className="text-xl font-semibold">{t("InfluenceTrack")}</div>
+                <div className="text-xs text-muted-foreground">{t("MVP • Alias par réseau • Maquettes interactives")}</div>
               </div>
             </div>
-            <Separator/>
-            <div className="p-4 md:p-6">
-              <Tabs value={active} onValueChange={setActive}>
-                <TabsList className="grid grid-cols-5 w-full">
-                  <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-                  <TabsTrigger value="detail">Détail influenceur</TabsTrigger>
-                  <TabsTrigger value="compare">Comparateur</TabsTrigger>
-                  <TabsTrigger value="reports">Rapports</TabsTrigger>
-                  <TabsTrigger value="alerts">Alertes</TabsTrigger>
-                </TabsList>
-                <div className="mt-6"/>
-                <TabsContent value="dashboard"><Dashboard/></TabsContent>
-                <TabsContent value="detail"><InfluencerDetail/></TabsContent>
-                <TabsContent value="compare"><Compare/></TabsContent>
-                <TabsContent value="reports"><Reports/></TabsContent>
-                <TabsContent value="alerts"><Alerts/></TabsContent>
-              </Tabs>
+            <div className="flex flex-col md:flex-row gap-2 md:items-center md:gap-3 w-full md:w-auto">
+              <AddInfluencerControl inline/>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" className="gap-2" onClick={toggleTheme} aria-label={isDark ? t("Mode clair") : t("Mode sombre")}>
+                  {isDark ? <Sun className="h-4 w-4"/> : <Moon className="h-4 w-4"/>}
+                  {isDark ? t("Mode clair") : t("Mode sombre")}
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2" onClick={toggleLanguage} aria-label={t("Langue")}>
+                  <Languages className="h-4 w-4"/>
+                  {languageLabel}
+                </Button>
+                <Button variant="outline" size="sm" className="gap-2"><Download className="h-4 w-4"/>{t("Exporter")}</Button>
+                <Button variant="outline" size="sm" className="gap-2"><Bell className="h-4 w-4"/>{t("Notifications")}</Button>
+              </div>
             </div>
+          </div>
+          <Separator/>
+          <div className="p-4 md:p-6">
+            <Tabs value={active} onValueChange={setActive}>
+              <TabsList className="grid grid-cols-5 w-full">
+                <TabsTrigger value="dashboard">{t("Dashboard")}</TabsTrigger>
+                <TabsTrigger value="detail">{t("Détail influenceur")}</TabsTrigger>
+                <TabsTrigger value="compare">{t("Comparateur")}</TabsTrigger>
+                <TabsTrigger value="reports">{t("Rapports")}</TabsTrigger>
+                <TabsTrigger value="alerts">{t("Alertes")}</TabsTrigger>
+              </TabsList>
+              <div className="mt-6"/>
+              <TabsContent value="dashboard"><Dashboard/></TabsContent>
+              <TabsContent value="detail"><InfluencerDetail/></TabsContent>
+              <TabsContent value="compare"><Compare/></TabsContent>
+              <TabsContent value="reports"><Reports/></TabsContent>
+              <TabsContent value="alerts"><Alerts/></TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>
-    </AppStateProvider>
+    </div>
+  );
+}
+
+export default function App(){
+  return (
+    <PreferencesProvider>
+      <AppStateProvider>
+        <AppShell/>
+      </AppStateProvider>
+    </PreferencesProvider>
   );
 }
