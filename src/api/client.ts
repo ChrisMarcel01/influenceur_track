@@ -1,4 +1,5 @@
 export const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
+const ALLOW_MOCK_FALLBACK = (import.meta.env.VITE_ALLOW_MOCK_FALLBACK ?? "false") === "true";
 
 export class SocialApiError extends Error {
   status?: number;
@@ -45,6 +46,7 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function shouldUseMock(error: unknown): boolean {
+  if (!ALLOW_MOCK_FALLBACK) return false;
   if (error instanceof SocialApiError) {
     if (error.status === undefined) return true;
     if (error.status >= 500) return true;
@@ -59,12 +61,18 @@ export function isNotFound(error: unknown): boolean {
 
 export function toUserFacingError(error: unknown, fallbackMessage: string): Error {
   if (error instanceof SocialApiError) {
-    if (shouldUseMock(error)) {
+    if (ALLOW_MOCK_FALLBACK && shouldUseMock(error)) {
       return new Error(
         `${fallbackMessage} (service indisponible). Configurez VITE_SOCIAL_API_URL pour interroger votre backend.`,
       );
     }
-    return new Error(error.message);
+    const baseMessage = error.message || fallbackMessage;
+    if (!ALLOW_MOCK_FALLBACK) {
+      return new Error(
+        `${baseMessage}. Configurez VITE_SOCIAL_API_URL vers votre API live ou définissez VITE_ALLOW_MOCK_FALLBACK=true pour réactiver les données de démonstration.`,
+      );
+    }
+    return new Error(baseMessage);
   }
   if (error instanceof Error) {
     return error;

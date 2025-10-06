@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "build:dist": "tsc -b && vite build",
     "build:offline": "tsc -b && vite build",
-    "mock:api": "node scripts/mock-social-api.mjs"
+    "mock:api": "node scripts/mock-social-api.mjs",
+    "live:api": "node scripts/social-live-api.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
