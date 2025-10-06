@@ -10,6 +10,12 @@ import { Separator } from "@/components/ui/separator";
 import { Platform, platforms } from "@/lib/platforms";
 import { useInfluencerSearch } from "@/hooks/useInfluencerSearch";
 import {
+  fetchInfluencerProfile,
+  InfluencerProfileResponse,
+  PlatformMetrics as ApiPlatformMetrics,
+  PostSummary,
+} from "@/api/socialMetrics";
+import {
   Download,
   Bell,
   TrendingUp,
@@ -32,6 +38,7 @@ import {
   Moon,
   Languages,
   Loader2,
+  RefreshCcw,
 } from "lucide-react";
 import {
   LineChart,
@@ -47,7 +54,7 @@ import {
 } from "recharts";
 
 const weeks = ["W-11","W-10","W-9","W-8","W-7","W-6","W-5","W-4","W-3","W-2","W-1","W0"];
-const engagementFormats = ["Photo", "Vidéo", "Story", "Live"] as const;
+const defaultEngagementFormats = ["Photo", "Vidéo", "Story", "Live"] as const;
 
 type PlatformAccount = { handle: string; displayName?: string };
 
@@ -56,110 +63,22 @@ type InfluencerMeta = {
   accounts: Partial<Record<Platform, PlatformAccount>>;
 };
 
-type Post = { id: string; platform: Platform; title: string; likes: number; comments: number; date: string };
+type Post = PostSummary;
 
-function seedFrom(s: string) { let v = 1; for (let i=0;i<s.length;i++) v = (v*31 + s.charCodeAt(i)) % 1_000_003; return v; }
-function rand(seed: number) { let _s = seed; return (min=0, max=1) => { _s = (_s*1103515245 + 12345) % 2147483648; const t = _s/2147483648; return min + t*(max-min); }; }
-
-function pad2(n:number){ return n<10?`0${n}`:`${n}`; }
-function dateMinusDays(days:number){ const d = new Date(); d.setDate(d.getDate()-days); return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
-
-function generatePosts(rf:(a?:number,b?:number)=>number, baseHandle:string): Record<Platform, Post[]>{
-  const titlesIG = ["Unboxing", "OOTD", "Behind the scene", "Collab", "Giveaway", "Routine", "Sneak peek", "Drop", "Q&A", "Lookbook"];
-  const titlesTT = ["Dance", "GRWM", "Trend", "Lifehack", "Storytime", "Before/After", "Challenge", "Mini vlog", "Recipe", "Tutorial"];
-  const titlesYT = ["VLOG", "Review", "How-To", "Podcast", "Travel", "Live replay", "Interview", "Top 10", "Haul", "Collab"];
-  const titlesX  = ["Teaser", "Thread", "Poll", "Hot take", "Event", "Shoutout", "AMA", "Launch", "Update", "Recap"];
-  const build = (platform:Platform, pool:string[]): Post[] => Array.from({length:10}).map((_,i)=>{
-    const likes = Math.round(rf(800, 30000));
-    const comments = Math.round(rf(30, 1200));
-    const title = `${pool[i%pool.length]} ${i+1}`;
-    return { id: `${platform}-${baseHandle}-${i}`, platform, title, likes, comments, date: dateMinusDays(i*2 + Math.round(rf(0,2))) };
-  });
-  return {
-    Instagram: build("Instagram", titlesIG),
-    TikTok: build("TikTok", titlesTT),
-    YouTube: build("YouTube", titlesYT),
-    X: build("X", titlesX),
-  };
-}
-
-function generateInfluencerData(keyHandle: string) {
-  const r = rand(seedFrom(keyHandle));
-  const base = Math.round(r(30000, 90000));
-  const inc = Math.round(r(800, 2000));
-  const series = weeks.map((_, i) => base + i*inc + Math.round((i%3)*r(300, 900)));
-  const engagement: Record<string, number> = {
-    Photo: Math.round(r(1.2, 4.5)*10)/10,
-    Vidéo: Math.round(r(2.0, 6.0)*10)/10,
-    Story: Math.round(r(0.8, 2.5)*10)/10,
-    Live: Math.round(r(1.5, 4.0)*10)/10,
-  };
-  const ratios = [r(0.2, 0.5), r(0.1, 0.4), r(0.05, 0.25), r(0.05, 0.2)];
-  const sum = ratios.reduce((a,b)=>a+b,0);
-  const last = series[series.length-1];
-  const mk = (f:number, d1:number, d2:number, p1:number, p2:number) => ({ followers: Math.round(last*f), weeklyDelta: Math.round(r(d1, d2)*10)/10, avgEngagement: Math.round(r(p1, p2)*10)/10, posts7d: Math.round(r(0, 4)) });
-  return {
-    series,
-    engagement,
-    platform: {
-      Instagram: mk(ratios[0]/sum, 0.6, 4.8, 2.0, 6.0),
-      TikTok:    mk(ratios[1]/sum, 0.6, 4.8, 2.5, 6.0),
-      YouTube:   mk(ratios[2]/sum, 0.4, 2.0, 1.0, 3.0),
-      X:         mk(ratios[3]/sum, 0.2, 1.5, 0.8, 2.0),
-    } as Record<Platform, { followers:number; weeklyDelta:number; avgEngagement:number; posts7d:number }>,
-    posts: generatePosts(r, keyHandle)
-  };
-}
-
-const initialEntities: InfluencerMeta[] = [
-  { name: "Amelia", accounts: { Instagram: { handle: "@amelia" }, TikTok: { handle: "@amelia" }, YouTube: { handle: "@amelia" }, X: { handle: "@amelia" } } },
-  { name: "Nathan", accounts: { Instagram: { handle: "@nathan" }, TikTok: { handle: "@nathan" }, YouTube: { handle: "@nathan" }, X: { handle: "@nathan" } } },
-  { name: "Leah",   accounts: { Instagram: { handle: "@leah" }, TikTok: { handle: "@leah" }, YouTube: { handle: "@leah" }, X: { handle: "@leah" } } },
-  { name: "Sasha",  accounts: { Instagram: { handle: "@sasha" }, TikTok: { handle: "@sasha" }, YouTube: { handle: "@sasha" }, X: { handle: "@sasha" } } },
-  { name: "Iris",   accounts: { Instagram: { handle: "@iris_ig" }, TikTok: { handle: "@iris" }, YouTube: { handle: "@iris" }, X: { handle: "@iris" } } },
-  { name: "Victor", accounts: { Instagram: { handle: "@victor" }, TikTok: { handle: "@victor" }, YouTube: { handle: "@victor" }, X: { handle: "@victor" } } },
-];
-
-const initialGrowth: Record<string, number[]> = {};
-const initialEngagement: Record<string, Record<string, number>> = {};
-const initialPlatformMetrics: Record<string, Record<Platform, { followers:number; weeklyDelta:number; avgEngagement:number; posts7d:number }>> = {};
-const initialPosts: Record<string, Record<Platform, Post[]>> = {};
-for (const e of initialEntities) {
-  const anyAccount = e.accounts.Instagram?.handle || Object.values(e.accounts)[0]?.handle || e.name;
-  const d = generateInfluencerData(anyAccount);
-  initialGrowth[e.name] = d.series;
-  initialEngagement[e.name] = d.engagement;
-  initialPlatformMetrics[e.name] = d.platform;
-  initialPosts[e.name] = d.posts;
-}
-
-if (initialPlatformMetrics["Iris"]) {
-  initialPlatformMetrics["Iris"].Instagram.posts7d = 12;
-  initialPlatformMetrics["Iris"].Instagram.avgEngagement = Math.max(initialPlatformMetrics["Iris"].Instagram.avgEngagement, 4.5);
-}
-if (initialGrowth["Victor"]) {
-  const volSeries = weeks.map((_, i) => {
-    const base = 55000 + i*300;
-    const wave = Math.round(7000 * Math.sin(i * 0.9));
-    const noise = (i % 2 === 0 ? 2500 : -3000);
-    return Math.max(10000, base + wave + noise);
-  });
-  initialGrowth["Victor"] = volSeries;
-  if (initialPlatformMetrics["Victor"]) {
-    initialPlatformMetrics["Victor"].Instagram.weeklyDelta = -1.2;
-    initialPlatformMetrics["Victor"].TikTok.weeklyDelta = 3.5;
-    initialPlatformMetrics["Victor"].YouTube.weeklyDelta = -0.8;
-    initialPlatformMetrics["Victor"].X.weeklyDelta = 0.5;
+function normalizeSeries(series?: number[]): number[] {
+  if (!series || series.length === 0) {
+    return weeks.map(() => 0);
   }
+  if (series.length === weeks.length) {
+    return [...series];
+  }
+  if (series.length > weeks.length) {
+    return series.slice(series.length - weeks.length);
+  }
+  const padValue = series[0] ?? 0;
+  const padding = Array.from({ length: weeks.length - series.length }, () => padValue);
+  return [...padding, ...series];
 }
-
-const topPosts = [
-  { id: "1", platform: "Instagram", title: "Giveaway Back-to-school", likes: 12840, comments: 640, date: "2025-09-01" },
-  { id: "2", platform: "TikTok", title: "GRWM – Routine de rentrée", likes: 22450, comments: 1020, date: "2025-09-03" },
-  { id: "3", platform: "YouTube", title: "VLOG Paris Fashion Week", likes: 18430, comments: 320, date: "2025-09-05" },
-  { id: "4", platform: "X", title: "Teaser collab ✨", likes: 6200, comments: 180, date: "2025-09-07" },
-  { id: "5", platform: "Instagram", title: "Unboxing nouvelle gamme", likes: 15210, comments: 410, date: "2025-09-09" },
-];
 
 function score({ weeklyDelta, avgEngagement, posts7d }:{ weeklyDelta:number; avgEngagement:number; posts7d:number }){
   const growth = Math.min(Math.max((weeklyDelta + 5)/10, 0), 1);
@@ -306,6 +225,8 @@ const translations: Record<Language, Record<string, string>> = {
     "Aucun résultat trouvé": "No results found",
     "Engagement": "Engagement",
     "Thématiques": "Topics",
+    "Chargement des données en cours...": "Loading data...",
+    "Actualiser": "Refresh",
   },
 };
 
@@ -323,11 +244,14 @@ interface AppState {
   selected: string[];
   setSelected: React.Dispatch<React.SetStateAction<string[]>>;
   toggleEntity: (name: string) => void;
-  addOrLinkInfluencer: (params: { platform: Platform; handle: string; displayName?: string }) => void;
+  addOrLinkInfluencer: (params: { platform: Platform; handle: string; displayName?: string }) => Promise<void>;
+  refreshInfluencer: (name: string) => Promise<void>;
   growth: Record<string, number[]>;
   engagement: Record<string, Record<string, number>>;
   platformMetrics: Record<string, Record<Platform, { followers:number; weeklyDelta:number; avgEngagement:number; posts7d:number }>>;
   posts: Record<string, Record<Platform, Post[]>>;
+  loading: Record<string, boolean>;
+  errors: Record<string, string | null>;
 }
 
 const AppStateContext = createContext<AppState | null>(null);
@@ -340,41 +264,145 @@ function titleCaseFromHandle(cleanHandle: string){
 }
 
 function AppStateProvider({ children }:{ children:React.ReactNode }){
-  const [entities, setEntities] = useState<InfluencerMeta[]>(initialEntities);
-  const [selected, setSelected] = useState<string[]>(["Amelia", "Nathan"]);
-  const [growth, setGrowth] = useState<Record<string, number[]>>({...initialGrowth});
-  const [engagement, setEngagement] = useState<Record<string, Record<string, number>>>({...initialEngagement});
-  const [platformMetrics, setPlatformMetrics] = useState<Record<string, Record<Platform, { followers:number; weeklyDelta:number; avgEngagement:number; posts7d:number }>>>({...initialPlatformMetrics});
-  const [posts, setPosts] = useState<Record<string, Record<Platform, Post[]>>>({
-    ...initialPosts,
-    Iris: { ...initialPosts["Iris"], Instagram: initialPosts["Iris"]?.Instagram?.map((p,i)=>({ ...p, title: p.title, likes: p.likes, comments: p.comments })) }
-  });
+  const [entities, setEntities] = useState<InfluencerMeta[]>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [growth, setGrowth] = useState<Record<string, number[]>>({});
+  const [engagement, setEngagement] = useState<Record<string, Record<string, number>>>({});
+  const [platformMetrics, setPlatformMetrics] = useState<Record<string, Record<Platform, ApiPlatformMetrics>>>({});
+  const [posts, setPosts] = useState<Record<string, Record<Platform, Post[]>>>({});
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
 
   const toggleEntity = (name:string) => setSelected(prev => prev.includes(name)? prev.filter(n=>n!==name) : [...prev, name]);
 
-  const addOrLinkInfluencer = ({ platform, handle, displayName }: { platform:Platform; handle:string; displayName?:string }) => {
-    const cleanHandle = handle.trim().replace(/^@*/, "@");
-    const name = (displayName && displayName.trim()) || titleCaseFromHandle(cleanHandle);
+  const applyProfile = useCallback((name: string, profile: InfluencerProfileResponse) => {
+    const accountsFromProfile: Partial<Record<Platform, PlatformAccount>> = profile.accounts
+      ? Object.fromEntries(
+          Object.entries(profile.accounts).map(([key, account]) => {
+            if (!account) return [key, account];
+            const normalizedHandle = account.handle?.startsWith("@") ? account.handle : account.handle ? `@${account.handle}` : account.handle;
+            return [key, { ...account, handle: normalizedHandle }];
+          }),
+        ) as Partial<Record<Platform, PlatformAccount>>
+      : {};
 
-    const exists = entities.find(e => e.name.toLowerCase() === name.toLowerCase());
-    if (exists){
-      const updated = entities.map(e => e.name===exists.name ? ({ ...e, accounts: { ...e.accounts, [platform]: { handle: cleanHandle, displayName: name }}}) : e);
-      setEntities(updated);
-      if (!selected.includes(exists.name)) setSelected(prev=>[...prev, exists.name]);
-      return;
+    setEntities(prev => prev.map(entity => entity.name === name ? ({
+      ...entity,
+      accounts: {
+        ...entity.accounts,
+        ...accountsFromProfile,
+      },
+    }) : entity));
+
+    const normalizedGrowth = normalizeSeries(profile.summary?.growthSeries);
+    setGrowth(prev => ({ ...prev, [name]: normalizedGrowth }));
+
+    const engagementMap = profile.summary?.engagementByFormat ?? {};
+    const formats = new Set<string>([...Object.keys(engagementMap), ...defaultEngagementFormats]);
+    const normalizedEngagement: Record<string, number> = {};
+    formats.forEach(fmt => { normalizedEngagement[fmt] = engagementMap[fmt] ?? 0; });
+    setEngagement(prev => ({ ...prev, [name]: normalizedEngagement }));
+
+    setPlatformMetrics(prev => {
+      const current = { ...(prev[name] ?? {}) } as Record<Platform, ApiPlatformMetrics>;
+      const platformEntries = profile.platforms ? Object.entries(profile.platforms) as [Platform, { metrics: ApiPlatformMetrics; posts?: Post[] }][] : [];
+      for (const [platformKey, platformData] of platformEntries) {
+        if (platformData?.metrics) {
+          current[platformKey] = platformData.metrics;
+        }
+      }
+      return { ...prev, [name]: current };
+    });
+
+    setPosts(prev => {
+      const current = { ...(prev[name] ?? {}) } as Record<Platform, Post[]>;
+      const platformEntries = profile.platforms ? Object.entries(profile.platforms) as [Platform, { posts?: Post[] }][] : [];
+      for (const [platformKey, platformData] of platformEntries) {
+        if (platformData?.posts) {
+          current[platformKey] = platformData.posts;
+        }
+      }
+      return { ...prev, [name]: current };
+    });
+  }, []);
+
+  const loadProfile = useCallback(async (name: string, platform: Platform, handle: string) => {
+    const normalizedHandle = handle.replace(/^@+/, "").trim();
+    if (!normalizedHandle) return;
+
+    setLoading(prev => ({ ...prev, [name]: true }));
+    setErrors(prev => ({ ...prev, [name]: null }));
+
+    try {
+      const profile = await fetchInfluencerProfile({ platform, handle: normalizedHandle });
+      applyProfile(name, profile);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to fetch influencer data";
+      setErrors(prev => ({ ...prev, [name]: message }));
+    } finally {
+      setLoading(prev => ({ ...prev, [name]: false }));
     }
+  }, [applyProfile]);
 
-    const d = generateInfluencerData(cleanHandle);
-    const newEntity: InfluencerMeta = { name, accounts: { [platform]: { handle: cleanHandle, displayName: name } } };
-    setEntities(prev => [...prev, newEntity]);
-    setGrowth(prev => ({ ...prev, [name]: d.series }));
-    setEngagement(prev => ({ ...prev, [name]: d.engagement }));
-    setPlatformMetrics(prev => ({ ...prev, [name]: d.platform }));
-    setPosts(prev => ({ ...prev, [name]: d.posts }));
-    setSelected(prev => [...prev, name]);
+  const addOrLinkInfluencer = useCallback(async ({ platform, handle, displayName }: { platform:Platform; handle:string; displayName?:string }) => {
+    const trimmed = handle.trim();
+    const sanitized = trimmed.replace(/^@+/, "");
+    if (!sanitized) return;
+    const handleWithAt = `@${sanitized}`;
+    const baseName = displayName?.trim() || titleCaseFromHandle(handleWithAt);
+
+    let finalName = baseName;
+    setEntities(prev => {
+      const match = prev.find(e => e.name.toLowerCase() === baseName.toLowerCase());
+      if (match) {
+        finalName = match.name;
+        return prev.map(entity => entity.name === match.name ? ({
+          ...entity,
+          accounts: {
+            ...entity.accounts,
+            [platform]: { handle: handleWithAt, displayName: baseName },
+          },
+        }) : entity);
+      }
+      return [...prev, {
+        name: baseName,
+        accounts: {
+          [platform]: { handle: handleWithAt, displayName: baseName },
+        },
+      }];
+    });
+
+    setSelected(prev => prev.includes(finalName) ? prev : [...prev, finalName]);
+
+    await loadProfile(finalName, platform, sanitized);
+  }, [loadProfile]);
+
+  const refreshInfluencer = useCallback(async (name: string) => {
+    const entity = entities.find(e => e.name === name);
+    if (!entity) return;
+    for (const platform of platforms) {
+      const handle = entity.accounts[platform]?.handle?.replace(/^@+/, "");
+      if (handle) {
+        await loadProfile(name, platform, handle);
+        break;
+      }
+    }
+  }, [entities, loadProfile]);
+
+  const value: AppState = {
+    entities,
+    selected,
+    setSelected,
+    toggleEntity,
+    addOrLinkInfluencer,
+    refreshInfluencer,
+    growth,
+    engagement,
+    platformMetrics,
+    posts,
+    loading,
+    errors,
   };
-
-  const value: AppState = { entities, selected, setSelected, toggleEntity, addOrLinkInfluencer, growth, engagement, platformMetrics, posts };
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 
@@ -440,6 +468,20 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
   const { results, isLoading, error, hasQuery } = useInfluencerSearch({ platform, query: handle, limit: 6 });
   const canSubmit = handle.trim().length > 0;
   const shouldShowSuggestions = hasQuery && (isLoading || results.length > 0 || !!error);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const onSubmit = useCallback(async () => {
+    if (!handle.trim()) return;
+    setIsSubmitting(true);
+    try {
+      await addOrLinkInfluencer({ platform, handle, displayName });
+      setHandle("");
+      setDisplayName("");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [addOrLinkInfluencer, platform, handle, displayName]);
+
   return (
     <div className={`flex ${inline?"items-center":"items-stretch"} gap-2 flex-wrap`}>
       <div className="relative grow min-w-[220px]">
@@ -519,34 +561,57 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
       </select>
       <Input value={displayName} onChange={(e)=>setDisplayName(e.target.value)} placeholder={t("Nom affiché (ex: Amelia)")} className="min-w-[180px]"/>
       <Button
-        onClick={() => {
-          if(!handle.trim()) return;
-          addOrLinkInfluencer({ platform, handle, displayName });
-          setHandle("");
-          setDisplayName("");
-        }}
+        onClick={onSubmit}
         className="gap-2"
-        disabled={!canSubmit}
+        disabled={!canSubmit || isSubmitting}
       >
-        <Plus className="h-4 w-4"/>{t("Ajouter/Lier")}
+        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4"/>}
+        {t("Ajouter/Lier")}
       </Button>
     </div>
   );
 }
 
 function Dashboard(){
-  const { selected, growth, engagement, platformMetrics } = useAppState();
+  const { selected, growth, engagement, platformMetrics, posts } = useAppState();
   const { t } = useTranslation();
 
+  const engagementFormats = useMemo(() => {
+    const formatSet = new Set<string>();
+    selected.forEach(name => {
+      Object.keys(engagement[name] ?? {}).forEach(fmt => formatSet.add(fmt));
+    });
+    if (formatSet.size === 0) {
+      defaultEngagementFormats.forEach(fmt => formatSet.add(fmt));
+    }
+    return Array.from(formatSet);
+  }, [selected, engagement]);
+
   const growthCombined = useMemo(()=> weeks.map((w, i)=>{ const row:any = { week:w }; selected.forEach(n=> row[n] = (growth[n]?.[i] ?? 0)); return row; }), [selected, growth]);
-  const engagementCombined = useMemo(()=> engagementFormats.map(fmt=>{ const row:any = { name:fmt }; selected.forEach(n=> row[n] = (engagement[n]?.[fmt] ?? 0)); return row; }), [selected, engagement]);
+  const engagementCombined = useMemo(()=> engagementFormats.map(fmt=>{ const row:any = { name:fmt }; selected.forEach(n=> row[n] = (engagement[n]?.[fmt] ?? 0)); return row; }), [selected, engagement, engagementFormats]);
 
   const lastFollowersSum = selected.reduce((a,n)=> a + (growth[n]?.[weeks.length-1]||0), 0);
   const prevFollowersSum = selected.reduce((a,n)=> a + (growth[n]?.[weeks.length-2]||0), 0);
   const delta = lastFollowersSum - prevFollowersSum;
   const deltaPct = prevFollowersSum ? Math.round((delta/prevFollowersSum)*1000)/10 : 0;
   const posts7dTotal = selected.reduce((acc, name) => acc + platforms.reduce((s, pl)=> s + (platformMetrics[name]?.[pl]?.posts7d || 0), 0), 0);
-  const avgLikes = Math.round(topPosts.reduce((a,p)=>a+p.likes,0)/topPosts.length);
+  const topPosts = useMemo(() => {
+    const combined: Post[] = [];
+    selected.forEach(name => {
+      const perPlatform = posts[name] ?? {};
+      platforms.forEach(platform => {
+        const list = perPlatform[platform];
+        if (list?.length) {
+          combined.push(...list);
+        }
+      });
+    });
+    return combined
+      .slice()
+      .sort((a, b) => b.likes - a.likes)
+      .slice(0, 5);
+  }, [selected, posts]);
+  const avgLikes = topPosts.length ? Math.round(topPosts.reduce((a,p)=>a+p.likes,0)/topPosts.length) : 0;
 
   return (
     <div className="space-y-6">
@@ -611,22 +676,28 @@ function Dashboard(){
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {topPosts.map(p => (
-                <div key={p.id} className="flex items-center justify-between rounded-xl border p-3">
-                  <div className="flex items-center gap-3">
-                    <Badge className="rounded-full">{p.platform}</Badge>
-                    <div>
-                      <div className="font-medium">{p.title}</div>
-                      <div className="text-xs text-muted-foreground">{new Date(p.date).toLocaleDateString()}</div>
+              {topPosts.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  {t("Ajoute au moins un influenceur dans le Dashboard ou ici.")}
+                </div>
+              ) : (
+                topPosts.map(p => (
+                  <div key={p.id} className="flex items-center justify-between rounded-xl border p-3">
+                    <div className="flex items-center gap-3">
+                      <Badge className="rounded-full">{p.platform}</Badge>
+                      <div>
+                        <div className="font-medium">{p.title}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(p.date).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6 text-sm">
+                      <div className="flex items-center gap-1"><Star className="h-4 w-4"/> {p.likes.toLocaleString()}</div>
+                      <div className="flex items-center gap-1"><ChatBubble/> {p.comments.toLocaleString()}</div>
+                      <Button variant="ghost" size="sm" className="gap-2"><Share2 className="h-4 w-4"/>{t("Partager")}</Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-1"><Star className="h-4 w-4"/> {p.likes.toLocaleString()}</div>
-                    <div className="flex items-center gap-1"><ChatBubble/> {p.comments.toLocaleString()}</div>
-                    <Button variant="ghost" size="sm" className="gap-2"><Share2 className="h-4 w-4"/>{t("Partager")}</Button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -636,11 +707,28 @@ function Dashboard(){
 }
 
 function InfluencerDetail(){
-  const { entities, growth, engagement, platformMetrics, posts } = useAppState();
+  const { entities, growth, engagement, platformMetrics, posts, loading, errors, refreshInfluencer } = useAppState();
   const { t } = useTranslation();
   const [selectedName, setSelectedName] = useState(entities[0]?.name || "");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Record<Platform, boolean>>({ Instagram:true, TikTok:true, YouTube:true, X:true });
+  useEffect(() => {
+    if (!entities.length) {
+      setSelectedName("");
+      return;
+    }
+    if (!selectedName || !entities.some(e => e.name === selectedName)) {
+      setSelectedName(entities[0]?.name || "");
+    }
+  }, [entities, selectedName]);
+
   const entity = entities.find(e => e.name===selectedName);
+  const isLoading = selectedName ? !!loading[selectedName] : false;
+  const errorMessage = selectedName ? errors[selectedName] : null;
+  const onRefresh = useCallback(() => {
+    if (selectedName) {
+      refreshInfluencer(selectedName);
+    }
+  }, [refreshInfluencer, selectedName]);
 
   const followersLast = growth[selectedName]?.[weeks.length-1] || 0;
   const followersPrev = growth[selectedName]?.[weeks.length-2] || 0;
@@ -650,10 +738,25 @@ function InfluencerDetail(){
 
   const postsCount = platforms.reduce((acc, pl)=> acc + (selectedPlatforms[pl] ? (platformMetrics[selectedName]?.[pl]?.posts7d || 0) : 0), 0);
 
+  if (!entity) {
+    return (
+      <div className="space-y-6">
+        <Card className="rounded-2xl shadow-md">
+          <CardHeader><SectionTitle icon={Users} title={t("Sélection")} /></CardHeader>
+          <CardContent>
+            <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+              {t("Ajoute au moins un influenceur dans le Dashboard ou ici.")}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card className="rounded-2xl shadow-md">
-        <CardHeader><SectionTitle icon={Users} title={t("Sélection")}/></CardHeader>
+        <CardHeader><SectionTitle icon={Users} title={t("Sélection")} actions={selectedName ? <Button variant="outline" size="sm" className="gap-2" onClick={onRefresh} disabled={isLoading}><RefreshCcw className="h-4 w-4"/>{t("Actualiser")}</Button> : null}/></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -676,6 +779,17 @@ function InfluencerDetail(){
               </div>
             </div>
           </div>
+          {isLoading && (
+            <div className="flex items-center gap-2 rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t("Chargement des données en cours...")}
+            </div>
+          )}
+          {errorMessage && (
+            <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
         </CardContent>
       </Card>
 

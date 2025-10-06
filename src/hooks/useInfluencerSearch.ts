@@ -42,7 +42,7 @@ export function useInfluencerSearch({
     let cancelled = false;
     setIsLoading(true);
     const timeout = setTimeout(() => {
-      searchInfluencers({ platform, query, limit })
+      searchInfluencers({ platform, query: normalizedQuery, limit })
         .then((items) => {
           if (cancelled) return;
           setResults(items);
@@ -63,7 +63,7 @@ export function useInfluencerSearch({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [platform, query, limit, debounceMs, hasQuery]);
+  }, [platform, normalizedQuery, limit, debounceMs, hasQuery]);
 
   return { results, isLoading, error, hasQuery };
 }
