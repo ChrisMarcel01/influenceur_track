@@ -70,7 +70,9 @@ VITE_SOCIAL_API_URL=https://mon-backend.exemple.com npm run dev
 - `npm run lint` : exécute ESLint
 
 ## Fallback mock
-Par défaut l'application n'utilise **plus** le dataset statique. Les appels échouent si le backend réel ne répond pas, ce qui garantit que les données proviennent bien des profils saisis. Pour réactiver temporairement le jeu de données embarqué, définissez :
+Si aucune URL d'API (`VITE_SOCIAL_API_URL`) n'est configurée, l'application utilise automatiquement le dataset embarqué pour rester exploitable immédiatement. Une fois un backend live branché, vous pouvez désactiver ce fallback en définissant explicitement `VITE_ALLOW_MOCK_FALLBACK=false`.
+
+Pour forcer le fallback mock tout en conservant une URL distante (par exemple en environnement de recette), définissez :
 
 ```bash
 VITE_ALLOW_MOCK_FALLBACK=true

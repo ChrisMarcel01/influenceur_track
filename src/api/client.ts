@@ -1,5 +1,15 @@
 export const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
-const ALLOW_MOCK_FALLBACK = (import.meta.env.VITE_ALLOW_MOCK_FALLBACK ?? "false") === "true";
+
+const ALLOW_MOCK_FALLBACK = (() => {
+  const explicit = import.meta.env.VITE_ALLOW_MOCK_FALLBACK;
+  if (explicit !== undefined) {
+    return explicit === "true";
+  }
+  // When no backend URL is configured we automatically fall back to the mock dataset
+  // to keep the experience usable out of the box.
+  const hasCustomApi = Boolean(import.meta.env.VITE_SOCIAL_API_URL);
+  return !hasCustomApi;
+})();
 
 export class SocialApiError extends Error {
   status?: number;
