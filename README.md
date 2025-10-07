@@ -1,88 +1,179 @@
-# Comment lancer l'application
+# Guide complet pour utiliser l'application web
 
-Ce guide décrit chaque action à réaliser pour tester l'application avec les données de démonstration fournies. Même si vous n'avez jamais utilisé Node.js ou Vite, suivez simplement les étapes dans l'ordre indiqué.
+Ce document décrit **pas à pas** tout ce qu'il faut faire pour tester l'application en local, connecter vos propres API pour chaque réseau social, puis préparer un déploiement. Chaque étape est écrite pour qu'une personne débutante puisse la suivre sans connaissances techniques préalables.
 
-## 1. Installer les outils nécessaires
-- [Node.js](https://nodejs.org/) version 18 ou supérieure (20 recommandé).
-- npm 9 ou supérieur (livré avec Node.js).
+---
 
-Vous pouvez vérifier vos versions avec :
-```bash
-node -v
-npm -v
-```
+## Partie A — Préparer l'environnement de travail
 
-## 2. Récupérer les dépendances du projet
-Dans un terminal ouvert à la racine du projet :
-```bash
-npm install
-```
-Cette commande télécharge tout ce dont l'application a besoin.
+### Étape A1 · Installer les outils indispensables
+1. Ouvrez votre navigateur et rendez-vous sur [https://nodejs.org](https://nodejs.org/).
+2. Téléchargez la version **LTS** (long term support) de Node.js, au minimum la version 18 (la 20 est recommandée).
+3. Lancez l'installateur téléchargé et suivez toutes les étapes par défaut. L'installateur installe aussi `npm`, le gestionnaire de paquets nécessaire.
+4. Une fois l'installation terminée, ouvrez un terminal (PowerShell sur Windows, Terminal sur macOS/Linux) et tapez :
+   ```bash
+   node -v
+   npm -v
+   ```
+   Vous devez voir deux numéros de version. Si une erreur apparaît, redémarrez votre ordinateur et réessayez.
 
-## 3. Préparer la configuration
-1. Copiez le fichier d'exemple :
+### Étape A2 · Télécharger les dépendances du projet
+1. Ouvrez un terminal et placez-vous dans le dossier du projet (utilisez `cd chemin/vers/le/dossier`).
+2. Exécutez la commande suivante pour télécharger toutes les bibliothèques JavaScript dont l'application a besoin :
+   ```bash
+   npm install
+   ```
+3. Attendez la fin de la commande (aucune erreur rouge ne doit s'afficher). Si vous voyez « added XXX packages », c'est réussi.
+
+---
+
+## Partie B — Configurer les variables d'environnement
+
+### Étape B1 · Créer le fichier de configuration local
+1. À la racine du projet, copiez le modèle fourni :
    ```bash
    cp .env.example .env.local
    ```
-2. Ouvrez `.env.local` dans un éditeur de texte et vérifiez que ces deux lignes sont présentes :
+   > Sous Windows PowerShell, la commande équivalente est `Copy-Item .env.example .env.local`.
+
+### Étape B2 · Activer les données de démonstration
+1. Ouvrez le fichier `.env.local` dans un éditeur de texte (Bloc-notes, VS Code, etc.).
+2. Vérifiez que les lignes suivantes existent **exactement** ainsi :
    ```ini
    VITE_SOCIAL_API_URL=http://localhost:3030
    VITE_ALLOW_MOCK_FALLBACK=true
    ```
-   > Ces valeurs pointent vers l'API de démonstration et réactivent automatiquement les données mock si votre backend n'est pas disponible.
+3. Enregistrez le fichier. Ces paramètres indiquent au frontend de contacter l'API de démonstration locale et d'utiliser les données mock si votre backend réel ne répond pas.
 
-## 4. Lancer l'API de démonstration (nouveau terminal)
-1. Ouvrez un **deuxième terminal** à la racine du projet.
-2. Démarrez l'API mock :
-   ```bash
-   npm run mock:api
+### Étape B3 · (Optionnel) Préparer vos propres API par réseau
+Si vous disposez déjà de services distincts pour Instagram, Facebook, X (Twitter), TikTok ou YouTube, vous pouvez préparer leurs URL dès maintenant.
+
+1. Dans `.env.local`, ajoutez ou modifiez les lignes suivantes en remplaçant `https://mon-api/...` par vos propres URL :
+   ```ini
+   VITE_SOCIAL_API_URL_INSTAGRAM=https://mon-api.example/instagram
+   VITE_SOCIAL_API_URL_FACEBOOK=https://mon-api.example/facebook
+   VITE_SOCIAL_API_URL_X=https://mon-api.example/twitter
+   VITE_SOCIAL_API_URL_TIKTOK=https://mon-api.example/tiktok
+   VITE_SOCIAL_API_URL_YOUTUBE=https://mon-api.example/youtube
    ```
-   Vous devez voir un message indiquant que le serveur écoute sur `http://localhost:3030`. **Laissez ce terminal ouvert** pendant toute la durée de vos tests.
-
-## 5. Lancer le frontend Vite (premier terminal)
-Dans le **premier terminal**, exécutez :
-```bash
-npm run dev
-```
-Vite affiche alors une URL du type `http://localhost:5173/`.
-
-## 6. Ouvrir l'application
-Dans votre navigateur, saisissez `http://localhost:5173`. Effectuez une recherche : les résultats proviennent de l'API de démonstration. Si vous ne voyez rien, vérifiez que l'API mock du point 4 fonctionne toujours.
+2. Ne laissez aucun espace inutile. Si vous ne possédez pas de service pour un réseau, laissez la ligne vide (ex :`VITE_SOCIAL_API_URL_X=`).
+3. Conservez `VITE_SOCIAL_API_URL` comme valeur de secours : le frontend l'utilise si un réseau n'a pas d'URL dédiée.
 
 ---
 
-## Aller plus loin
-- **Utiliser votre propre backend** : modifiez `VITE_SOCIAL_API_URL` dans `.env.local` pour qu'il pointe vers votre API et, si besoin, remettez `VITE_ALLOW_MOCK_FALLBACK=false` pour désactiver les données de secours.
-- **Connecter chaque réseau à un service dédié** :
-  1. Copiez (ou éditez) `.env.local` et définissez les couples `VITE_SOCIAL_API_URL_<RÉSEAU>` pour **chaque** plateforme que vous souhaitez brancher. Exemple :
+## Partie C — Lancer l'application en mode démonstration
 
-     ```ini
-     VITE_SOCIAL_API_URL_INSTAGRAM=https://api.mondomaine.com/instagram
-     VITE_SOCIAL_API_URL_FACEBOOK=https://api.mondomaine.com/facebook
-     VITE_SOCIAL_API_URL_X=https://api.mondomaine.com/twitter
-     VITE_SOCIAL_API_URL_TIKTOK=https://api.mondomaine.com/tiktok
-     VITE_SOCIAL_API_URL_YOUTUBE=https://api.mondomaine.com/youtube
-     ```
+Cette partie démarre les deux serveurs nécessaires : l'API de démonstration et le frontend Vite.
 
-     > Ces clés doivent être ajoutées à **.env.local** (et non `.env`) pour que Vite les charge pendant `npm run dev`.
+### Étape C1 · Démarrer l'API mock
+1. Ouvrez un **premier terminal** à la racine du projet.
+2. Tapez :
+   ```bash
+   npm run mock:api
+   ```
+3. La commande affiche `Mock social API listening on http://localhost:3030`. Laissez ce terminal ouvert : il doit rester actif tant que vous testez l'application.
 
-  2. Si vous compilez l'appli (`npm run build`) puis lancez le serveur Node (`npm run start`), ajoutez les cibles équivalentes côté backend dans **.env.local** avec la forme `SOCIAL_PROXY_TARGET_<RÉSEAU>`. Le serveur de production relaiera alors `/api/social/...` vers l'URL correspondante. Exemple :
+### Étape C2 · Lancer le serveur de développement Vite
+1. Ouvrez un **deuxième terminal** (ou un nouvel onglet) toujours à la racine du projet.
+2. Lancez le frontend :
+   ```bash
+   npm run dev
+   ```
+3. Lorsque Vite a fini de compiler, il affiche `Local: http://localhost:5173/`. Copiez cette adresse.
 
-     ```ini
-     SOCIAL_PROXY_TARGET_INSTAGRAM=https://api.mondomaine.com/instagram
-     SOCIAL_PROXY_TARGET_FACEBOOK=https://api.mondomaine.com/facebook
-     SOCIAL_PROXY_TARGET_X=https://api.mondomaine.com/twitter
-     SOCIAL_PROXY_TARGET_TIKTOK=https://api.mondomaine.com/tiktok
-     SOCIAL_PROXY_TARGET_YOUTUBE=https://api.mondomaine.com/youtube
-     ```
+### Étape C3 · Vérifier l'interface
+1. Ouvrez votre navigateur et rendez-vous sur `http://localhost:5173/`.
+2. Dans la barre de recherche, tapez au moins **deux lettres** (par exemple « in »). Les suggestions d'influenceurs doivent apparaître immédiatement.
+3. Cliquez sur un résultat : la fiche détaillée s'affiche avec les indicateurs mock.
+4. Si aucune donnée ne remonte, vérifiez que le terminal de l'étape C1 affiche toujours « listening » et qu'aucune erreur rouge n'est apparue.
 
-     > Les variables `SOCIAL_PROXY_TARGET_<RÉSEAU>` sont lues au démarrage du serveur Node **dans le même fichier `.env.local`**.
+---
 
-  3. Si aucune URL n'est fournie pour un réseau, l'application retombera sur `VITE_SOCIAL_API_URL` (ou sur les données de démonstration si le fallback est actif).
-- **Tester le proxy live** : remplissez les jetons requis dans `.env.local`, lancez `npm run live:api` dans un terminal dédié (au lieu de `npm run mock:api`), puis suivez les étapes 5 et 6.
-- **Construire la version prête au déploiement** :
-  ```bash
-  npm run build
-  npm run start
-  ```
-  Le serveur de production écoute sur `http://localhost:4173` et peut relayer les requêtes `/api/social` vers un backend défini par `SOCIAL_PROXY_TARGET` dans `.env.local`.
+## Partie D — Brancher vos propres services
+
+### Étape D1 · Remplacer l'API par défaut par votre backend unique
+1. Ouvrez `.env.local`.
+2. Remplacez `VITE_SOCIAL_API_URL` par l'URL de votre API (ex :`https://api.mondomaine.com/social`).
+3. Si vous souhaitez **obliger** l'application à n'utiliser que votre backend, passez `VITE_ALLOW_MOCK_FALLBACK` à `false`.
+4. Redémarrez les serveurs (`Ctrl+C` dans chaque terminal, puis relancez les étapes C1 et C2) pour prendre en compte les nouveaux réglages.
+
+### Étape D2 · Configurer une URL par réseau
+1. Dans `.env.local`, remplissez les variables `VITE_SOCIAL_API_URL_<RÉSEAU>` créées à l'étape B3 avec les URL réelles de vos services.
+2. Exemple complet :
+   ```ini
+   VITE_SOCIAL_API_URL_INSTAGRAM=https://api.mondomaine.com/instagram
+   VITE_SOCIAL_API_URL_FACEBOOK=https://api.mondomaine.com/facebook
+   VITE_SOCIAL_API_URL_X=https://api.mondomaine.com/twitter
+   VITE_SOCIAL_API_URL_TIKTOK=https://api.mondomaine.com/tiktok
+   VITE_SOCIAL_API_URL_YOUTUBE=https://api.mondomaine.com/youtube
+   ```
+3. Redémarrez `npm run dev`. Le frontend choisira automatiquement l'URL correspondant au réseau que vous interrogez.
+
+### Étape D3 · Préparer la couche proxy pour le déploiement
+1. Les variables `SOCIAL_PROXY_TARGET_<RÉSEAU>` sont lues par le serveur Node utilisé en production (`npm run start`). Elles doivent être définies dans **le même fichier `.env.local`** que les autres clés.
+2. Ajoutez, si nécessaire :
+   ```ini
+   SOCIAL_PROXY_TARGET_INSTAGRAM=https://api.mondomaine.com/instagram
+   SOCIAL_PROXY_TARGET_FACEBOOK=https://api.mondomaine.com/facebook
+   SOCIAL_PROXY_TARGET_X=https://api.mondomaine.com/twitter
+   SOCIAL_PROXY_TARGET_TIKTOK=https://api.mondomaine.com/tiktok
+   SOCIAL_PROXY_TARGET_YOUTUBE=https://api.mondomaine.com/youtube
+   ```
+3. Si vous avez une seule API pour tous les réseaux, laissez simplement `SOCIAL_PROXY_TARGET=https://api.unique.com/social` sans renseigner les variables spécifiques.
+
+### Étape D4 · Tester vos API
+1. Pour chaque URL que vous avez configurée, testez la réponse avec `curl` (ou votre navigateur) avant de relancer l'application :
+   ```bash
+   curl -i https://api.mondomaine.com/instagram/influencers?query=nom
+   ```
+2. Vérifiez que le code HTTP est `200` et qu'un JSON est renvoyé. Si une erreur apparaît, corrigez votre backend avant d'avancer.
+
+---
+
+## Partie E — Construire et servir la version prête au déploiement
+
+### Étape E1 · Générer les fichiers de production
+1. Arrêtez les serveurs de développement (`Ctrl+C`).
+2. Lancez :
+   ```bash
+   npm run build
+   ```
+3. La commande doit afficher `✓ built in ...` et créer un dossier `dist/` contenant les fichiers optimisés.
+
+### Étape E2 · Démarrer le serveur Node de production
+1. Dans le même terminal, exécutez :
+   ```bash
+   npm run start
+   ```
+2. Le serveur écoute sur `http://localhost:4173`. Il charge automatiquement `.env.local` et relaie les requêtes `/api/social` vers `SOCIAL_PROXY_TARGET` ou `SOCIAL_PROXY_TARGET_<RÉSEAU>`.
+3. Ouvrez `http://localhost:4173` dans votre navigateur et vérifiez que les recherches fonctionnent comme attendu.
+
+### Étape E3 · Vérifier la configuration proxy
+1. Depuis un autre terminal, vérifiez par exemple :
+   ```bash
+   curl -i http://localhost:4173/api/social/instagram/search?query=nom
+   ```
+2. Si la réponse est 200, le proxy est correctement configuré. En cas de 502 ou 404, revoyez les variables `SOCIAL_PROXY_TARGET_*`.
+
+---
+
+## Partie F — Conseils de déploiement
+
+1. **Plateformes Node (Vercel, Render, Railway, etc.)** : déployez le contenu du dossier et assurez-vous que la commande de démarrage soit `npm run start`. Déclarez toutes les variables présentes dans `.env.local` sur l'interface de la plateforme (notamment `SOCIAL_PROXY_TARGET_<RÉSEAU>` si vous utilisez plusieurs services).
+2. **Hébergement statique (Netlify, S3, etc.)** : construisez avec `npm run build` et déployez le dossier `dist/`. Dans ce cas vous devez exposer vous-même un backend accessible publiquement (ou un middleware) pour `/api/social`, car le proxy Node ne sera pas disponible.
+3. **Tests post-déploiement** :
+   - Ouvrez l'URL de production et testez une recherche sur chaque réseau.
+   - Surveillez la console du navigateur (F12) pour détecter d'éventuelles erreurs CORS ou 404.
+
+---
+
+## Partie G — Dépannage rapide
+
+| Symptôme | Diagnostic | Solution détaillée |
+| --- | --- | --- |
+| « Failed to fetch » lors d'une recherche | Le backend n'est pas accessible ou refuse la requête | Vérifiez que `npm run mock:api` est actif ou que vos URL `VITE_SOCIAL_API_URL_*` répondent en testant avec `curl`. Activez `VITE_ALLOW_MOCK_FALLBACK=true` pour rétablir les données de démonstration le temps de corriger votre API. |
+| Aucune suggestion n'apparaît | Moins de deux caractères saisis | Tapez au moins deux lettres. Vérifiez dans `.env.local` que les URL sont correctes et redémarrez `npm run dev`. |
+| Erreur CORS dans la console | Votre API bloque les requêtes provenant du navigateur | Ajoutez `Access-Control-Allow-Origin: *` (ou votre domaine) côté backend, puis réessayez. |
+| Les URL personnalisées ne sont pas prises en compte | Le serveur n'a pas été relancé après modification | Appuyez sur `Ctrl+C` dans les terminaux, relancez `npm run mock:api` puis `npm run dev` (ou `npm run start`) afin de recharger la configuration. |
+
+En suivant chacune de ces étapes dans l'ordre, vous disposez d'un environnement complet prêt à être testé localement puis déployé avec vos propres services sociaux.
