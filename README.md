@@ -69,18 +69,50 @@ set "VITE_SOCIAL_API_URL=http://localhost:3030" && npm run dev
 ```
 
 ### 3. Avec votre propre backend
-Exposez des endpoints compatibles avec ceux utilisés dans `src/api` puis définissez l'URL :
 
-```bash
-# macOS / Linux
-VITE_SOCIAL_API_URL=https://mon-backend.exemple.com npm run dev
+Pour brancher l'interface sur une API que vous contrôlez :
 
-# Windows (PowerShell)
-$env:VITE_SOCIAL_API_URL="https://mon-backend.exemple.com"; npm run dev
+1. **Exposer les routes attendues** – Le frontend consomme les endpoints suivants sur `VITE_SOCIAL_API_URL` :
+   - `GET /search/influencers?q=<terme>&platform=<optionnel>&limit=<optionnel>`
+   - `GET /influencers/profile?platform=<plateforme>&handle=<@pseudo>`
+   - `GET /platforms/{platform}/posts?handle=<@pseudo>&limit=<optionnel>`
+   - `GET /platforms/{platform}/followers?handle=<@pseudo>&weeks=<optionnel>`
+   - `GET /platforms/{platform}/engagement?handle=<@pseudo>`
+   - `GET /platforms/{platform}/metrics?handle=<@pseudo>`
+   Chaque route doit retourner du JSON structuré comme dans `src/api/*.ts`. Inspirez-vous des données présentes dans `src/data/mockSocialData.json` pour les champs attendus (identifiants, followers, posts, etc.).
+2. **Autoriser le CORS** – Lorsque vous développez en local, ajoutez `http://localhost:5173` (ou le domaine de votre déploiement) dans la liste des origines autorisées de votre backend. Sans cela, la requête échoue avec `Failed to fetch`.
+3. **Définir l'URL côté frontend** – Créez un fichier `.env.local` à la racine du projet ou exportez les variables dans votre terminal :
 
-# Windows (Invite de commandes)
-set "VITE_SOCIAL_API_URL=https://mon-backend.exemple.com" && npm run dev
-```
+   ```bash
+   # .env.local (exemple)
+   VITE_SOCIAL_API_URL=https://mon-backend.exemple.com
+   VITE_ALLOW_MOCK_FALLBACK=false   # optionnel, désactive le retour automatique aux données mockées
+   ```
+
+   Relancez ensuite Vite :
+
+   ```bash
+   npm run dev
+   ```
+
+   > Préférez `.env.local` pour éviter de retaper les variables à chaque session. Sous Windows PowerShell, utilisez `Set-Content -Path .env.local -Value "VITE_SOCIAL_API_URL=https://mon-backend.exemple.com``nVITE_ALLOW_MOCK_FALLBACK=false"`.
+4. **Vérifier la connectivité** – Avant d'actualiser l'interface, testez votre backend avec `curl` ou un navigateur :
+
+   ```bash
+   curl -H "Origin: http://localhost:5173" "https://mon-backend.exemple.com/search/influencers?q=doe"
+   ```
+
+   Vous devez obtenir une réponse JSON (`{ "results": [...] }`). Si la requête échoue, inspectez les logs serveur, la configuration TLS et les en-têtes CORS.
+
+#### Dépanner l'erreur « Failed to fetch »
+
+Lorsque cette erreur s'affiche dans l'UI, suivez les points ci-dessous :
+
+1. **Variable manquante** – Vérifiez avec `echo $VITE_SOCIAL_API_URL` (ou `Get-Item Env:VITE_SOCIAL_API_URL` sous PowerShell) que la variable est bien définie avant de lancer `npm run dev`.
+2. **Mauvaise URL** – L'URL doit inclure le schéma (`http://` ou `https://`) et être accessible depuis le navigateur. Testez-la directement dans le navigateur ou via `curl`.
+3. **Erreur TLS ou certificat auto-signé** – En développement, utilisez `http://` ou configurez votre navigateur pour accepter le certificat.
+4. **CORS** – Si la console réseau affiche `CORS error`, ajoutez l'origine du frontend dans les en-têtes `Access-Control-Allow-Origin` et autorisez les méthodes `GET`/`OPTIONS`.
+5. **Fallback mock** – Pour réactiver les données de démonstration en attendant que le backend réponde, définissez `VITE_ALLOW_MOCK_FALLBACK=true` dans `.env.local` puis redémarrez Vite.
 
 ## Scripts utiles
 - `npm run dev` : démarre Vite (penser à définir `VITE_SOCIAL_API_URL` si besoin)
