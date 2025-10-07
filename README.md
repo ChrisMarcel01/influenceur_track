@@ -124,8 +124,14 @@ Ces actions reproduisent les conditions de production tout en restant sur votre 
    - _Via le CLI_ : installez l'outil avec `npm i -g vercel`, exécutez `vercel login` puis `vercel` à la racine du projet pour lier le répertoire courant à un projet Vercel.
 3. **Configurer la construction**  
    Vercel détecte automatiquement Vite. Vérifiez néanmoins dans **Settings → Build & Development → Build Command** que la commande est `npm run build` et que le dossier de sortie est `dist`. Si vous utilisez le CLI, répondez `npm run build` à la question *"What is your Build Command?"* et `dist` pour *"Output Directory"* lors du premier déploiement.
-4. **Définir les variables d'environnement**  
+4. **Définir les variables d'environnement**
    Dans **Settings → Environment Variables**, ajoutez au minimum `VITE_SOCIAL_API_URL` (URL de votre backend/proxy social). Ajoutez également `VITE_ALLOW_MOCK_FALLBACK=false` pour empêcher le repli sur les données mockées. Renseignez les valeurs dans les environnements **Production**, **Preview** et **Development** selon vos besoins.
+
+   > Que faire dans la fenêtre « Add Environment Variable » ?
+   > 1. Choisissez l'environnement concerné (**Production**, **Preview** ou **Development**) et, si nécessaire, ciblez une branche spécifique via **Select a custom Preview branch**.
+   > 2. Indiquez le nom de la variable dans le champ **Key** (par exemple `VITE_SOCIAL_API_URL`).
+   > 3. Renseignez la valeur correspondante dans le champ **Value** (ex. `https://mon-proxy-social.exemple`).
+   > 4. Cliquez sur **Save** pour enregistrer la variable. Répétez l'opération pour chaque secret requis (`INSTAGRAM_SESSION_ID`, `FACEBOOK_ACCESS_TOKEN`, etc.).
 5. **Lancer le déploiement**  
    - _Via Git_ : chaque `git push` sur la branche principale déclenche un déploiement de production ; les autres branches génèrent des aperçus (Preview).  
    - _Via CLI_ : exécutez `vercel --prod` pour déployer la branche courante en production, ou simplement `vercel` pour créer un aperçu.
@@ -151,4 +157,37 @@ Pour aller au-delà de l'intégration de base, voici l'ordre recommandé :
 5. **Durcir la sécurité** – Lorsque vous hébergez le proxy, sécurisez l'accès (authentification, quotas) et stockez les secrets dans un coffre-fort ou un service de gestion de secrets.
 
 Ces étapes garantissent une transition progressive d'une maquette alimentée par des données mockées vers une exploitation fiable des données sociales réelles.
+
+## Annexes Git
+
+### Fusionner une branche de fonctionnalité dans `main`
+
+1. **Mettre `main` à jour**
+   ```bash
+   git checkout main
+   git pull --ff-only
+   ```
+   Cette étape garantit que votre branche principale reflète bien l'état du dépôt distant avant toute fusion.
+
+2. **Préparer la branche à fusionner**
+   ```bash
+   git checkout ma-branche
+   git merge main        # ou git rebase main
+   ```
+   Résolvez les conflits éventuels, exécutez les tests puis commitez les corrections. L'objectif est de vous assurer que la branche est compatible avec la dernière version de `main` avant de l'y intégrer.
+
+3. **Fusionner dans `main`**
+   ```bash
+   git checkout main
+   git merge ma-branche
+   ```
+   Git créera un commit de fusion si nécessaire. Vérifiez le résultat (tests, lint, build) pour confirmer que l'intégration est saine.
+
+4. **Pousser la branche principale mise à jour**
+   ```bash
+   git push origin main
+   ```
+   Pensez à supprimer la branche locale/distante devenue obsolète si la fonctionnalité est terminée : `git branch -d ma-branche` puis `git push origin --delete ma-branche`.
+
+> 💡 Astuce : utilisez `git switch` à la place de `git checkout` si vous préférez la syntaxe moderne (`git switch main`, `git switch ma-branche`).
 
