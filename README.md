@@ -125,13 +125,22 @@ Ces actions reproduisent les conditions de production tout en restant sur votre 
 3. **Configurer la construction**  
    Vercel détecte automatiquement Vite. Vérifiez néanmoins dans **Settings → Build & Development → Build Command** que la commande est `npm run build` et que le dossier de sortie est `dist`. Si vous utilisez le CLI, répondez `npm run build` à la question *"What is your Build Command?"* et `dist` pour *"Output Directory"* lors du premier déploiement.
 4. **Définir les variables d'environnement**
-   Dans **Settings → Environment Variables**, ajoutez au minimum `VITE_SOCIAL_API_URL` (URL de votre backend/proxy social). Ajoutez également `VITE_ALLOW_MOCK_FALLBACK=false` pour empêcher le repli sur les données mockées. Renseignez les valeurs dans les environnements **Production**, **Preview** et **Development** selon vos besoins.
+   Dans **Settings → Environment Variables**, renseignez explicitement les couples **Key/Value** ci-dessous. Répétez l'opération pour les environnements **Production**, **Preview** et **Development** (les valeurs peuvent différer si vous disposez d'APIs de recette) :
+
+   | Key | Exemple de valeur | À quoi cela correspond ? |
+   | --- | ----------------- | ------------------------- |
+   | `VITE_SOCIAL_API_URL` | `https://social-proxy.mondomaine.com` | URL publique de votre backend ou du proxy `npm run live:api`. Elle doit être accessible par le frontend déployé. |
+   | `VITE_ALLOW_MOCK_FALLBACK` | `false` | Forcer l'interface à utiliser uniquement les données live. Passez la valeur à `true` si vous voulez autoriser le fallback sur les données mockées. |
+   | `INSTAGRAM_SESSION_ID` | `sessionid=...` | Cookie `sessionid` d'une session Instagram valide, utilisé par le proxy pour requêter l'API web. |
+   | `FACEBOOK_ACCESS_TOKEN` | `EAABsbCS1iHgBA...` | Jeton d'accès Graph API (Page/App) avec les scopes nécessaires pour récupérer les métriques d'influenceurs. |
+   | `YOUTUBE_API_KEY` | `AIzaSyC-...` | Clé API YouTube Data v3 autorisant la lecture des statistiques publiques. |
+   | `TWITTER_BEARER_TOKEN` *(optionnel)* | `AAAAAAAA...` | Jeton Bearer de l'API X (Twitter). Permet de récupérer les tweets récents ; sans lui seules les métadonnées publiques sont disponibles. |
 
    > Que faire dans la fenêtre « Add Environment Variable » ?
-   > 1. Choisissez l'environnement concerné (**Production**, **Preview** ou **Development**) et, si nécessaire, ciblez une branche spécifique via **Select a custom Preview branch**.
-   > 2. Indiquez le nom de la variable dans le champ **Key** (par exemple `VITE_SOCIAL_API_URL`).
-   > 3. Renseignez la valeur correspondante dans le champ **Value** (ex. `https://mon-proxy-social.exemple`).
-   > 4. Cliquez sur **Save** pour enregistrer la variable. Répétez l'opération pour chaque secret requis (`INSTAGRAM_SESSION_ID`, `FACEBOOK_ACCESS_TOKEN`, etc.).
+   > 1. Choisissez l'environnement concerné (**Production**, **Preview** ou **Development**) et, si besoin, ciblez une branche spécifique via **Select a custom Preview branch**.
+   > 2. Saisissez la valeur de la colonne **Key** dans le champ **Key** (ex. `VITE_SOCIAL_API_URL`).
+   > 3. Renseignez la valeur correspondant à votre infrastructure dans le champ **Value** (ex. `https://social-proxy.mondomaine.com`).
+   > 4. Cliquez sur **Save**. Répétez jusqu'à ce que toutes les variables listées plus haut soient ajoutées.
 5. **Lancer le déploiement**  
    - _Via Git_ : chaque `git push` sur la branche principale déclenche un déploiement de production ; les autres branches génèrent des aperçus (Preview).  
    - _Via CLI_ : exécutez `vercel --prod` pour déployer la branche courante en production, ou simplement `vercel` pour créer un aperçu.
