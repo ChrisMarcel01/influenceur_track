@@ -36,8 +36,10 @@ export async function searchInfluencers({
     params.set("platform", platform);
   }
 
+  const path = `/search/influencers?${params.toString()}`;
+
   try {
-    const result = await request<{ results: InfluencerSearchResult[] }>(`/search/influencers?${params.toString()}`);
+    const result = await request<{ results: InfluencerSearchResult[] }>(path);
     return (
       result.results
         ?.map((item) => {
@@ -48,7 +50,7 @@ export async function searchInfluencers({
         .filter((item): item is InfluencerSearchResult => item !== null) ?? []
     );
   } catch (error) {
-    if (shouldUseMock(error)) {
+    if (shouldUseMock(error, path)) {
       return mockSearchInfluencers({ platform, query: normalizedQuery, limit });
     }
     throw toUserFacingError(error, "Impossible de récupérer les influenceurs");

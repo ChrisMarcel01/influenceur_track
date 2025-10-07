@@ -42,7 +42,7 @@ loadEnvFiles();
 
 const port = Number(process.env.PORT || process.env.SERVER_PORT || 4173);
 const host = process.env.HOST || "0.0.0.0";
-const socialProxyTarget = process.env.SOCIAL_PROXY_TARGET || process.env.SOCIAL_API_TARGET || "";
+const defaultProxyTarget = process.env.SOCIAL_PROXY_TARGET || process.env.SOCIAL_API_TARGET || "";
 
 const distDir = path.resolve(process.cwd(), "dist");
 const fallbackHtmlPath = path.join(distDir, "index.html");
@@ -74,6 +74,16 @@ const platformLabels = {
 };
 
 const platformIds = Object.keys(platformLabels);
+
+const platformProxyTargets = new Map();
+for (const platformId of platformIds) {
+  const envKey = `SOCIAL_PROXY_TARGET_${platformId.toUpperCase()}`;
+  const altKey = `SOCIAL_API_TARGET_${platformId.toUpperCase()}`;
+  const value = process.env[envKey] || process.env[altKey];
+  if (typeof value === "string" && value.trim()) {
+    platformProxyTargets.set(platformId, value.trim());
+  }
+}
 
 function log(message, extra) {
   const base = `[server] ${message}`;
@@ -275,14 +285,82 @@ function buildMockMetrics(platform, handle) {
   return metrics ? cloneValue(metrics) : null;
 }
 
+function normalizeProxyBase(value, req) {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/\/$/, "");
+  }
+  if (trimmed.startsWith("//")) {
+    return `http:${trimmed}`.replace(/\/$/, "");
+  }
+  if (trimmed.startsWith("/")) {
+    const origin = req.headers.host ? `http://${req.headers.host}` : `http://${host}:${port}`;
+    return `${origin.replace(/\/$/, "")}${trimmed}`.replace(/\/$/, "");
+  }
+  return `http://${trimmed.replace(/\/$/, "")}`;
+}
+
+function joinProxyPath(base, relativePath) {
+  if (!relativePath.startsWith("/")) {
+    return base.endsWith("/") ? `${base}${relativePath}` : `${base}/${relativePath}`;
+  }
+  if (base.endsWith("/")) {
+    return `${base.slice(0, -1)}${relativePath}`;
+  }
+  return `${base}${relativePath}`;
+}
+
+function detectPlatformFromUrl(url) {
+  const platformPathMatch = url.pathname.match(/^\/api\/social\/platforms\/([^/]+)/);
+  if (platformPathMatch) {
+    return normalizePlatformKey(platformPathMatch[1]);
+  }
+  if (url.pathname === "/api/social/influencers/profile" || url.pathname === "/api/social/search/influencers") {
+    return normalizePlatformKey(url.searchParams.get("platform"));
+  }
+  return null;
+}
+
+function resolveProxyTarget(req, url) {
+  const platform = detectPlatformFromUrl(url);
+  if (platform) {
+    const specific = platformProxyTargets.get(platform);
+    if (specific) {
+      const normalized = normalizeProxyBase(specific, req);
+      if (normalized) {
+        return { base: normalized, platform };
+      }
+    }
+  }
+  if (defaultProxyTarget) {
+    const normalized = normalizeProxyBase(defaultProxyTarget, req);
+    if (normalized) {
+      return { base: normalized, platform: platform || null };
+    }
+  }
+  return null;
+}
+
 async function proxyApiRequest(req, res, url) {
-  if (!socialProxyTarget) {
+  const target = resolveProxyTarget(req, url);
+  if (!target) {
     return false;
   }
-  const base = socialProxyTarget.endsWith("/") ? socialProxyTarget.slice(0, -1) : socialProxyTarget;
-  const relativePath = url.pathname.replace(/^\/api\/social/, "");
-  const upstreamUrl = new URL(relativePath || "/", base);
-  upstreamUrl.search = url.searchParams.toString();
+
+  const relativePath = url.pathname.replace(/^\/api\/social/, "") || "/";
+  let upstreamUrl;
+  try {
+    upstreamUrl = new URL(joinProxyPath(target.base, relativePath));
+  } catch (error) {
+    json(res, 500, { error: "Invalid SOCIAL_PROXY_TARGET configuration" });
+    return true;
+  }
+  const searchString = url.searchParams.toString();
+  if (searchString) {
+    upstreamUrl.search = searchString;
+  }
 
   try {
     const upstreamResponse = await fetch(upstreamUrl, {

@@ -53,6 +53,10 @@ Dans votre navigateur, saisissez `http://localhost:5173`. Effectuez une recherch
 
 ## Aller plus loin
 - **Utiliser votre propre backend** : modifiez `VITE_SOCIAL_API_URL` dans `.env.local` pour qu'il pointe vers votre API et, si besoin, remettez `VITE_ALLOW_MOCK_FALLBACK=false` pour désactiver les données de secours.
+- **Connecter chaque réseau à un service dédié** :
+  1. Dans `.env.local`, ajoutez les couples `VITE_SOCIAL_API_URL_<RÉSEAU>` (ex. `VITE_SOCIAL_API_URL_INSTAGRAM=https://mon-api.example/instagram`). La barre de recherche et les graphiques utiliseront automatiquement l'URL correspondant au réseau sélectionné (Instagram, Facebook, X, TikTok, YouTube).
+  2. En production (`npm run start`), vous pouvez router chaque réseau vers une cible différente via `SOCIAL_PROXY_TARGET_<RÉSEAU>` dans `.env.local`. Le serveur Node relayera alors `/api/social/...` vers les URLs configurées, réseau par réseau.
+  3. Si aucune URL n'est fournie pour un réseau, l'application retombera sur `VITE_SOCIAL_API_URL` (ou sur les données de démonstration si le fallback est actif).
 - **Tester le proxy live** : remplissez les jetons requis dans `.env.local`, lancez `npm run live:api` dans un terminal dédié (au lieu de `npm run mock:api`), puis suivez les étapes 5 et 6.
 - **Construire la version prête au déploiement** :
   ```bash
