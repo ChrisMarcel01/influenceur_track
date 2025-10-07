@@ -1,6 +1,11 @@
 import { createServer } from "node:http";
-import { URL } from "node:url";
-import data from "../src/data/mockSocialData.json" assert { type: "json" };
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { URL, fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const dataPath = resolve(here, "../src/data/mockSocialData.json");
+const data = JSON.parse(readFileSync(dataPath, "utf8"));
 
 const port = Number(process.env.PORT || 3030);
 const host = process.env.HOST || "0.0.0.0";
