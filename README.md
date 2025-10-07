@@ -15,7 +15,7 @@ Ce document décrit **pas à pas** tout ce qu'il faut faire pour tester l'applic
    node -v
    npm -v
    ```
-   Vous devez voir deux numéros de version. Si une erreur apparaît, redémarrez votre ordinateur et réessayez.
+   ✅ **Résultat attendu :** deux numéros de version s'affichent (ex. `v20.x.x` et `10.x.x`). Si une erreur apparaît, redémarrez votre ordinateur et réessayez.
 
 ### Étape A2 · Télécharger les dépendances du projet
 1. Ouvrez un terminal et placez-vous dans le dossier du projet (utilisez `cd chemin/vers/le/dossier`).
@@ -23,7 +23,8 @@ Ce document décrit **pas à pas** tout ce qu'il faut faire pour tester l'applic
    ```bash
    npm install
    ```
-3. Attendez la fin de la commande (aucune erreur rouge ne doit s'afficher). Si vous voyez « added XXX packages », c'est réussi.
+3. Attendez la fin de la commande.
+   ✅ **Résultat attendu :** la commande se termine sans erreur et affiche un résumé du type « added XXX packages ».
 
 ---
 
@@ -35,6 +36,7 @@ Ce document décrit **pas à pas** tout ce qu'il faut faire pour tester l'applic
    cp .env.example .env.local
    ```
    > Sous Windows PowerShell, la commande équivalente est `Copy-Item .env.example .env.local`.
+   ✅ **Résultat attendu :** un fichier `.env.local` apparaît à la racine du projet.
 
 ### Étape B2 · Activer les données de démonstration
 1. Ouvrez le fichier `.env.local` dans un éditeur de texte (Bloc-notes, VS Code, etc.).
@@ -43,7 +45,8 @@ Ce document décrit **pas à pas** tout ce qu'il faut faire pour tester l'applic
    VITE_SOCIAL_API_URL=http://localhost:3030
    VITE_ALLOW_MOCK_FALLBACK=true
    ```
-3. Enregistrez le fichier. Ces paramètres indiquent au frontend de contacter l'API de démonstration locale et d'utiliser les données mock si votre backend réel ne répond pas.
+3. Enregistrez le fichier.
+   ✅ **Résultat attendu :** `.env.local` contient ces deux lignes, garantissant que le frontend utilise l'API mock locale et dispose d'un secours interne.
 
 ### Étape B3 · (Optionnel) Préparer vos propres API par réseau
 Si vous disposez déjà de services distincts pour Instagram, Facebook, X (Twitter), TikTok ou YouTube, vous pouvez préparer leurs URL dès maintenant.
@@ -58,6 +61,7 @@ Si vous disposez déjà de services distincts pour Instagram, Facebook, X (Twitt
    ```
 2. Ne laissez aucun espace inutile. Si vous ne possédez pas de service pour un réseau, laissez la ligne vide (ex :`VITE_SOCIAL_API_URL_X=`).
 3. Conservez `VITE_SOCIAL_API_URL` comme valeur de secours : le frontend l'utilise si un réseau n'a pas d'URL dédiée.
+   ✅ **Résultat attendu :** chaque plateforme possède sa propre URL (ou une ligne vide), prête à être utilisée par le frontend.
 
 ---
 
@@ -71,7 +75,8 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    ```bash
    npm run mock:api
    ```
-3. La commande affiche `Mock social API listening on http://localhost:3030`. Laissez ce terminal ouvert : il doit rester actif tant que vous testez l'application.
+3. Laissez ce terminal ouvert : il doit rester actif tant que vous testez l'application.
+   ✅ **Résultat attendu :** le terminal affiche `Mock social API listening on http://localhost:3030` sans message d'erreur.
 
 ### Étape C2 · Lancer le serveur de développement Vite
 1. Ouvrez un **deuxième terminal** (ou un nouvel onglet) toujours à la racine du projet.
@@ -80,12 +85,14 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    npm run dev
    ```
 3. Lorsque Vite a fini de compiler, il affiche `Local: http://localhost:5173/`. Copiez cette adresse.
+   ✅ **Résultat attendu :** Vite termine la compilation et montre une URL locale (généralement `http://localhost:5173/`) sans erreurs.
 
 ### Étape C3 · Vérifier l'interface
 1. Ouvrez votre navigateur et rendez-vous sur `http://localhost:5173/`.
 2. Dans la barre de recherche, tapez au moins **deux lettres** (par exemple « in »). Les suggestions d'influenceurs doivent apparaître immédiatement.
 3. Cliquez sur un résultat : la fiche détaillée s'affiche avec les indicateurs mock.
 4. Si aucune donnée ne remonte, vérifiez que le terminal de l'étape C1 affiche toujours « listening » et qu'aucune erreur rouge n'est apparue.
+   ✅ **Résultat attendu :** les suggestions s'affichent après deux lettres, et la fiche détaillée d'un influenceur mock apparaît après le clic.
 
 ---
 
@@ -96,6 +103,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
 2. Remplacez `VITE_SOCIAL_API_URL` par l'URL de votre API (ex :`https://api.mondomaine.com/social`).
 3. Si vous souhaitez **obliger** l'application à n'utiliser que votre backend, passez `VITE_ALLOW_MOCK_FALLBACK` à `false`.
 4. Redémarrez les serveurs (`Ctrl+C` dans chaque terminal, puis relancez les étapes C1 et C2) pour prendre en compte les nouveaux réglages.
+   ✅ **Résultat attendu :** le frontend interroge désormais votre API principale ; les suggestions reflètent vos données si l'endpoint répond correctement.
 
 ### Étape D2 · Configurer une URL par réseau
 1. Dans `.env.local`, remplissez les variables `VITE_SOCIAL_API_URL_<RÉSEAU>` créées à l'étape B3 avec les URL réelles de vos services.
@@ -108,6 +116,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    VITE_SOCIAL_API_URL_YOUTUBE=https://api.mondomaine.com/youtube
    ```
 3. Redémarrez `npm run dev`. Le frontend choisira automatiquement l'URL correspondant au réseau que vous interrogez.
+   ✅ **Résultat attendu :** chaque réseau interroge le bon service et renvoie vos données réelles lors des recherches.
 
 ### Étape D3 · Préparer la couche proxy pour le déploiement
 1. Les variables `SOCIAL_PROXY_TARGET_<RÉSEAU>` sont lues par le serveur Node utilisé en production (`npm run start`). Elles doivent être définies dans **le même fichier `.env.local`** que les autres clés.
@@ -120,6 +129,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    SOCIAL_PROXY_TARGET_YOUTUBE=https://api.mondomaine.com/youtube
    ```
 3. Si vous avez une seule API pour tous les réseaux, laissez simplement `SOCIAL_PROXY_TARGET=https://api.unique.com/social` sans renseigner les variables spécifiques.
+   ✅ **Résultat attendu :** les variables de proxy sont prêtes pour que le serveur de production redirige correctement chaque réseau.
 
 ### Étape D4 · Tester vos API
 1. Pour chaque URL que vous avez configurée, testez la réponse avec `curl` (ou votre navigateur) avant de relancer l'application :
@@ -127,6 +137,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    curl -i https://api.mondomaine.com/instagram/influencers?query=nom
    ```
 2. Vérifiez que le code HTTP est `200` et qu'un JSON est renvoyé. Si une erreur apparaît, corrigez votre backend avant d'avancer.
+   ✅ **Résultat attendu :** chaque requête `curl` répond avec un statut `200` et un corps JSON lisible.
 
 ---
 
@@ -139,6 +150,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    npm run build
    ```
 3. La commande doit afficher `✓ built in ...` et créer un dossier `dist/` contenant les fichiers optimisés.
+   ✅ **Résultat attendu :** Vite termine avec un message `✓ built in ...` et un dossier `dist/` apparaît à la racine.
 
 ### Étape E2 · Démarrer le serveur Node de production
 1. Dans le même terminal, exécutez :
@@ -147,6 +159,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    ```
 2. Le serveur écoute sur `http://localhost:4173`. Il charge automatiquement `.env.local` et relaie les requêtes `/api/social` vers `SOCIAL_PROXY_TARGET` ou `SOCIAL_PROXY_TARGET_<RÉSEAU>`.
 3. Ouvrez `http://localhost:4173` dans votre navigateur et vérifiez que les recherches fonctionnent comme attendu.
+   ✅ **Résultat attendu :** la console affiche `Server ready on http://localhost:4173`, et la recherche fonctionne via l'interface servie par ce port.
 
 ### Étape E3 · Vérifier la configuration proxy
 1. Depuis un autre terminal, vérifiez par exemple :
@@ -154,6 +167,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
    curl -i http://localhost:4173/api/social/instagram/search?query=nom
    ```
 2. Si la réponse est 200, le proxy est correctement configuré. En cas de 502 ou 404, revoyez les variables `SOCIAL_PROXY_TARGET_*`.
+   ✅ **Résultat attendu :** la commande renvoie un statut `200` et un JSON cohérent, preuve que le proxy relaie bien les requêtes.
 
 ---
 
