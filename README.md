@@ -28,7 +28,14 @@ npm run live:api
 Par défaut le serveur écoute sur `http://0.0.0.0:3031`. Lancez ensuite l'interface :
 
 ```bash
+# macOS / Linux
 VITE_SOCIAL_API_URL=http://localhost:3031 npm run dev
+
+# Windows (PowerShell)
+$env:VITE_SOCIAL_API_URL="http://localhost:3031"; npm run dev
+
+# Windows (Invite de commandes)
+set "VITE_SOCIAL_API_URL=http://localhost:3031" && npm run dev
 ```
 
 | Réseau     | Variables requises | Remarques |
@@ -51,14 +58,28 @@ npm run mock:api
 Il écoute sur `http://0.0.0.0:3030`. Démarrez l'interface dans un autre terminal :
 
 ```bash
+# macOS / Linux
 VITE_SOCIAL_API_URL=http://localhost:3030 npm run dev
+
+# Windows (PowerShell)
+$env:VITE_SOCIAL_API_URL="http://localhost:3030"; npm run dev
+
+# Windows (Invite de commandes)
+set "VITE_SOCIAL_API_URL=http://localhost:3030" && npm run dev
 ```
 
 ### 3. Avec votre propre backend
 Exposez des endpoints compatibles avec ceux utilisés dans `src/api` puis définissez l'URL :
 
 ```bash
+# macOS / Linux
 VITE_SOCIAL_API_URL=https://mon-backend.exemple.com npm run dev
+
+# Windows (PowerShell)
+$env:VITE_SOCIAL_API_URL="https://mon-backend.exemple.com"; npm run dev
+
+# Windows (Invite de commandes)
+set "VITE_SOCIAL_API_URL=https://mon-backend.exemple.com" && npm run dev
 ```
 
 ## Scripts utiles
@@ -86,7 +107,7 @@ Pour valider l'application avec des données de production, suivez les étapes c
 
 1. **Préparer les accès** – Collectez les identifiants listés dans le tableau ci-dessus et exportez-les dans votre shell (ou votre `.env.local`). Sans ces valeurs, les plateformes refuseront la plupart des appels live.
 2. **Lancer le proxy social** – Exécutez `npm run live:api` pour démarrer `scripts/social-live-api.mjs`. Vérifiez dans la console que chaque connecteur démarre sans erreur 4xx/5xx.
-3. **Démarrer l'interface** – Dans un second terminal, lancez `VITE_SOCIAL_API_URL=http://localhost:3031 npm run dev` afin de pointer l'UI vers le proxy live. Naviguez vers `http://localhost:5173` (par défaut) et recherchez un influenceur réel pour confirmer la récupération des métriques.
+3. **Démarrer l'interface** – Dans un second terminal, définissez `VITE_SOCIAL_API_URL` (voir exemples ci-dessus) puis lancez `npm run dev` afin de pointer l'UI vers le proxy live. Naviguez vers `http://localhost:5173` (par défaut) et recherchez un influenceur réel pour confirmer la récupération des métriques.
 4. **Analyser les journaux** – Surveillez le terminal du proxy : vous y verrez les requêtes effectuées vers les réseaux sociaux ainsi que les éventuelles erreurs de permission ou de quota. Corrigez les identifiants si nécessaire.
 5. **Désactiver le fallback mock** – Pour vous assurer que seules les données réelles sont utilisées, définissez `VITE_ALLOW_MOCK_FALLBACK=false` avant de relancer `npm run dev`.
 
