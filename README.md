@@ -6,6 +6,33 @@ Cette application React/TypeScript permet de rechercher des influenceurs, de lie
 - Node.js 18+ (recommandé : 20)
 - npm 9+
 
+## ⚡️ Test rapide en local
+
+1. **Installer les dépendances**
+
+   ```bash
+   npm install
+   ```
+
+2. **Créer votre fichier d'environnement** – Dupliquez `.env.example` en `.env.local` puis adaptez les valeurs :
+
+   ```bash
+   cp .env.example .env.local
+   # éditez ensuite .env.local pour pointer vers votre backend
+   ```
+
+   Par défaut, `VITE_SOCIAL_API_URL` est configurée sur `http://localhost:3031` (le proxy live). Remplacez-la par l'URL de votre backend si nécessaire.
+
+3. **Démarrer votre backend** – Assurez-vous que l'API répond bien depuis votre machine (ex. `http://localhost:4000`).
+
+4. **Lancer le frontend**
+
+   ```bash
+   npm run dev
+   ```
+
+   Ouvrez ensuite [http://localhost:5173](http://localhost:5173) dans votre navigateur. Si l'API ne répond pas, la console affichera l'erreur détaillée ; tant que vous n'avez pas remis `VITE_ALLOW_MOCK_FALLBACK=true`, aucune donnée mock ne masquera le problème.
+
 ## Installation
 ```bash
 npm install
@@ -81,7 +108,7 @@ Pour brancher l'interface sur une API que vous contrôlez :
    - `GET /platforms/{platform}/metrics?handle=<@pseudo>`
    Chaque route doit retourner du JSON structuré comme dans `src/api/*.ts`. Inspirez-vous des données présentes dans `src/data/mockSocialData.json` pour les champs attendus (identifiants, followers, posts, etc.).
 2. **Autoriser le CORS** – Lorsque vous développez en local, ajoutez `http://localhost:5173` (ou le domaine de votre déploiement) dans la liste des origines autorisées de votre backend. Sans cela, la requête échoue avec `Failed to fetch`.
-3. **Définir l'URL côté frontend** – Créez un fichier `.env.local` à la racine du projet ou exportez les variables dans votre terminal :
+3. **Définir l'URL côté frontend** – Créez un fichier `.env.local` (vous pouvez partir du modèle `.env.example`) ou exportez les variables dans votre terminal :
 
    ```bash
    # .env.local (exemple)
@@ -112,7 +139,7 @@ Lorsque cette erreur s'affiche dans l'UI, suivez les points ci-dessous :
 2. **Mauvaise URL** – L'URL doit inclure le schéma (`http://` ou `https://`) et être accessible depuis le navigateur. Testez-la directement dans le navigateur ou via `curl`.
 3. **Erreur TLS ou certificat auto-signé** – En développement, utilisez `http://` ou configurez votre navigateur pour accepter le certificat.
 4. **CORS** – Si la console réseau affiche `CORS error`, ajoutez l'origine du frontend dans les en-têtes `Access-Control-Allow-Origin` et autorisez les méthodes `GET`/`OPTIONS`.
-5. **Fallback mock** – Si vous avez désactivé le fallback (voir ci-dessous) et souhaitez réutiliser les données de démonstration en attendant que le backend réponde, définissez `VITE_ALLOW_MOCK_FALLBACK=true` dans `.env.local` puis redémarrez Vite.
+5. **Fallback mock** – Dès qu'une URL personnalisée est fournie dans `VITE_SOCIAL_API_URL`, l'application désactive automatiquement les données mockées afin que vous puissiez tester votre backend sans effet de masque. Si vous souhaitez tout de même garder une solution de repli, définissez `VITE_ALLOW_MOCK_FALLBACK=true` dans `.env.local` puis redémarrez Vite.
 
 ## Scripts utiles
 - `npm run dev` : démarre Vite (penser à définir `VITE_SOCIAL_API_URL` si besoin)
@@ -123,7 +150,14 @@ Lorsque cette erreur s'affiche dans l'UI, suivez les points ci-dessous :
 - `npm run lint` : exécute ESLint
 
 ## Fallback mock
-L'application garde le dataset de démonstration accessible par défaut afin que l'interface reste utilisable même si votre backend personnalisé est temporairement hors ligne. Pour garantir que seules les données live sont affichées, définissez explicitement `VITE_ALLOW_MOCK_FALLBACK=false` puis relancez `npm run dev`.
+Sans configuration particulière (`VITE_SOCIAL_API_URL` vide), l'application charge automatiquement les données de démonstration pour être utilisable immédiatement. Dès qu'une URL personnalisée est renseignée, le fallback est désactivé afin de faciliter les tests locaux de votre backend. Pour forcer explicitement un comportement donné :
+
+- Activer les données mockées même avec un backend personnalisé : `VITE_ALLOW_MOCK_FALLBACK=true`
+- Désactiver les données mockées dans tous les cas : `VITE_ALLOW_MOCK_FALLBACK=false`
+
+```bash
+VITE_ALLOW_MOCK_FALLBACK=false
+```
 
 Pour forcer le fallback mock tout en conservant une URL distante (par exemple en environnement de recette), définissez :
 
