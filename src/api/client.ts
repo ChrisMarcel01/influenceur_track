@@ -1,14 +1,22 @@
 export const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
 
+function normalizeBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return undefined;
+}
+
 const ALLOW_MOCK_FALLBACK = (() => {
-  const explicit = import.meta.env.VITE_ALLOW_MOCK_FALLBACK;
+  const explicit = normalizeBoolean(import.meta.env.VITE_ALLOW_MOCK_FALLBACK);
   if (explicit !== undefined) {
-    return explicit === "true";
+    return explicit;
   }
-  // When no backend URL is configured we automatically fall back to the mock dataset
-  // to keep the experience usable out of the box.
-  const hasCustomApi = Boolean(import.meta.env.VITE_SOCIAL_API_URL);
-  return !hasCustomApi;
+  // Keep the demo dataset accessible by default so the UI remains usable even
+  // when a custom backend is temporarily unavailable.
+  return true;
 })();
 
 export class SocialApiError extends Error {

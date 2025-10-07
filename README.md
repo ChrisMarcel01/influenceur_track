@@ -86,7 +86,7 @@ Pour brancher l'interface sur une API que vous contrôlez :
    ```bash
    # .env.local (exemple)
    VITE_SOCIAL_API_URL=https://mon-backend.exemple.com
-   VITE_ALLOW_MOCK_FALLBACK=false   # optionnel, désactive le retour automatique aux données mockées
+   VITE_ALLOW_MOCK_FALLBACK=false   # optionnel, force l'utilisation exclusive de votre backend
    ```
 
    Relancez ensuite Vite :
@@ -112,7 +112,7 @@ Lorsque cette erreur s'affiche dans l'UI, suivez les points ci-dessous :
 2. **Mauvaise URL** – L'URL doit inclure le schéma (`http://` ou `https://`) et être accessible depuis le navigateur. Testez-la directement dans le navigateur ou via `curl`.
 3. **Erreur TLS ou certificat auto-signé** – En développement, utilisez `http://` ou configurez votre navigateur pour accepter le certificat.
 4. **CORS** – Si la console réseau affiche `CORS error`, ajoutez l'origine du frontend dans les en-têtes `Access-Control-Allow-Origin` et autorisez les méthodes `GET`/`OPTIONS`.
-5. **Fallback mock** – Pour réactiver les données de démonstration en attendant que le backend réponde, définissez `VITE_ALLOW_MOCK_FALLBACK=true` dans `.env.local` puis redémarrez Vite.
+5. **Fallback mock** – Si vous avez désactivé le fallback (voir ci-dessous) et souhaitez réutiliser les données de démonstration en attendant que le backend réponde, définissez `VITE_ALLOW_MOCK_FALLBACK=true` dans `.env.local` puis redémarrez Vite.
 
 ## Scripts utiles
 - `npm run dev` : démarre Vite (penser à définir `VITE_SOCIAL_API_URL` si besoin)
@@ -123,7 +123,7 @@ Lorsque cette erreur s'affiche dans l'UI, suivez les points ci-dessous :
 - `npm run lint` : exécute ESLint
 
 ## Fallback mock
-Si aucune URL d'API (`VITE_SOCIAL_API_URL`) n'est configurée, l'application utilise automatiquement le dataset embarqué pour rester exploitable immédiatement. Une fois un backend live branché, vous pouvez désactiver ce fallback en définissant explicitement `VITE_ALLOW_MOCK_FALLBACK=false`.
+L'application garde le dataset de démonstration accessible par défaut afin que l'interface reste utilisable même si votre backend personnalisé est temporairement hors ligne. Pour garantir que seules les données live sont affichées, définissez explicitement `VITE_ALLOW_MOCK_FALLBACK=false` puis relancez `npm run dev`.
 
 Pour forcer le fallback mock tout en conservant une URL distante (par exemple en environnement de recette), définissez :
 
