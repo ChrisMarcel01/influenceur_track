@@ -114,8 +114,30 @@ Pour valider l'application avec des données de production, suivez les étapes c
 Ces actions reproduisent les conditions de production tout en restant sur votre machine de développement. Une fois validées, vous pouvez déployer le proxy et l'interface sur votre infrastructure cible.
 
 ## Déploiement
+
+### Publier sur Vercel pas à pas
+
+1. **Préparer le projet**  
+   Vérifiez que le dépôt Git contient bien le code à déployer et que le fichier `package.json` définit les scripts standards (`npm run build`, `npm run dev`, etc.). Commitez vos derniers changements puis poussez-les vers le dépôt distant (GitHub, GitLab, Bitbucket ou Vercel Git).
+2. **Créer/relier le projet Vercel**  
+   - _Depuis l'interface web_ : rendez-vous sur [vercel.com](https://vercel.com), cliquez sur **New Project** puis importez votre dépôt.  
+   - _Via le CLI_ : installez l'outil avec `npm i -g vercel`, exécutez `vercel login` puis `vercel` à la racine du projet pour lier le répertoire courant à un projet Vercel.
+3. **Configurer la construction**  
+   Vercel détecte automatiquement Vite. Vérifiez néanmoins dans **Settings → Build & Development → Build Command** que la commande est `npm run build` et que le dossier de sortie est `dist`. Si vous utilisez le CLI, répondez `npm run build` à la question *"What is your Build Command?"* et `dist` pour *"Output Directory"* lors du premier déploiement.
+4. **Définir les variables d'environnement**  
+   Dans **Settings → Environment Variables**, ajoutez au minimum `VITE_SOCIAL_API_URL` (URL de votre backend/proxy social). Ajoutez également `VITE_ALLOW_MOCK_FALLBACK=false` pour empêcher le repli sur les données mockées. Renseignez les valeurs dans les environnements **Production**, **Preview** et **Development** selon vos besoins.
+5. **Lancer le déploiement**  
+   - _Via Git_ : chaque `git push` sur la branche principale déclenche un déploiement de production ; les autres branches génèrent des aperçus (Preview).  
+   - _Via CLI_ : exécutez `vercel --prod` pour déployer la branche courante en production, ou simplement `vercel` pour créer un aperçu.
+6. **Vérifier le résultat**  
+   Une fois le build terminé, ouvrez l'URL fournie par Vercel. Testez les flux critiques (recherche d'influenceurs, affichage des métriques) et contrôlez la console navigateur pour détecter d'éventuelles erreurs CORS ou d'URL.
+
+> 💡 Le proxy social (`npm run live:api`) n'est pas déployé automatiquement sur Vercel. Hébergez-le sur une plateforme compatible Node (Vercel functions, Fly.io, Railway, etc.) ou sur votre infrastructure. Pointez ensuite `VITE_SOCIAL_API_URL` vers cette instance publique.
+
+### Autres plateformes
+
 1. Construire le bundle : `npm run build`
-2. Déployer le dossier `dist` sur la plateforme de votre choix (Netlify, Vercel, etc.)
+2. Déployer le dossier `dist` sur la plateforme de votre choix (Netlify, Cloudflare Pages, etc.)
 3. Configurer la variable d'environnement `VITE_SOCIAL_API_URL` vers votre API publique si vous souhaitez utiliser des données temps réel.
 
 ## Prochaines étapes suggérées
