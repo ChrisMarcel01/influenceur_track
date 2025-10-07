@@ -31,11 +31,19 @@
      # remplacez VITE_SOCIAL_API_URL par l'URL de votre backend dans .env.local
      # assurez-vous que le backend autorise http://localhost:5173 en CORS
      ```
-4. **Lancer le frontend**
+4. **Lancer le frontend en développement**
    ```bash
    npm run dev
    ```
 5. **Ouvrir l'application**
    Visitez [http://localhost:5173](http://localhost:5173) dans votre navigateur.
 
-> Relancez `npm run dev` à chaque fois que vous modifiez `.env.local` ou changez de source de données.
+6. **(Optionnel) Construire et lancer le serveur prêt à déployer**
+   ```bash
+   npm run build
+   npm run start
+   ```
+   - Le serveur s'exécute sur [http://localhost:4173](http://localhost:4173) et sert les fichiers générés dans `dist/`.
+   - Les requêtes vers `/api/social` utilisent les données mock intégrées. Pour interroger un backend personnalisé, définissez `SOCIAL_PROXY_TARGET=https://mon-backend.example` dans votre environnement (ou dans `.env.local`) avant `npm run start`.
+
+> Relancez `npm run dev` (ou `npm run start`) à chaque fois que vous modifiez `.env.local` ou changez de source de données.
