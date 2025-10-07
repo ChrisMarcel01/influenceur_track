@@ -227,6 +227,7 @@ const translations: Record<Language, Record<string, string>> = {
     "Thématiques": "Topics",
     "Chargement des données en cours...": "Loading data...",
     "Actualiser": "Refresh",
+    "Tapez au moins 2 caractères pour afficher des suggestions": "Type at least 2 characters to show suggestions",
   },
 };
 
@@ -469,6 +470,8 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
   const canSubmit = handle.trim().length > 0;
   const shouldShowSuggestions = hasQuery && (isLoading || results.length > 0 || !!error);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const normalizedHandle = handle.trim().replace(/^@+/, "");
+  const needsMoreCharacters = normalizedHandle.length > 0 && !hasQuery;
 
   const onSubmit = useCallback(async () => {
     if (!handle.trim()) return;
@@ -492,6 +495,11 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
           placeholder={t("@handle (ex: @nom_sur_tiktok)")}
           className="pl-8"
         />
+        {needsMoreCharacters && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {t("Tapez au moins 2 caractères pour afficher des suggestions")}
+          </p>
+        )}
         {shouldShowSuggestions && (
           <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border bg-popover text-popover-foreground shadow-xl">
             <div className="flex items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">

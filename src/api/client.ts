@@ -1,4 +1,5 @@
 export const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
+const IS_RELATIVE_API_BASE = API_BASE_URL.startsWith("/");
 
 function normalizeBoolean(value: unknown): boolean | undefined {
   if (typeof value === "boolean") return value;
@@ -72,6 +73,7 @@ export function shouldUseMock(error: unknown): boolean {
     if (error.status === undefined) return true;
     if (error.status >= 500) return true;
     if (error.status === 503) return true;
+    if (error.status === 404 && IS_RELATIVE_API_BASE) return true;
   }
   return false;
 }
