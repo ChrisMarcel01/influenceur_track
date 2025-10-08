@@ -190,4 +190,21 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
 | Erreur CORS dans la console | Votre API bloque les requêtes provenant du navigateur | Ajoutez `Access-Control-Allow-Origin: *` (ou votre domaine) côté backend, puis réessayez. |
 | Les URL personnalisées ne sont pas prises en compte | Le serveur n'a pas été relancé après modification | Appuyez sur `Ctrl+C` dans les terminaux, relancez `npm run mock:api` puis `npm run dev` (ou `npm run start`) afin de recharger la configuration. |
 
+---
+
+## Partie H — Créer ou brancher votre propre API
+
+Si vous avez besoin d'aller plus loin que l'API mock, consultez le guide détaillé [docs/CREER_API_PERSONNALISEE.md](docs/CREER_API_PERSONNALISEE.md). Vous y trouverez :
+
+1. **Le contrat d'API complet** (endpoints, paramètres, réponses attendues).
+   ✅ **Résultat attendu :** vous savez exactement quels champs renvoyer pour que le frontend fonctionne sans modification.
+2. **Un exemple d'implémentation Node.js** prêt à copier/coller.
+   ✅ **Résultat attendu :** `node server.mjs` affiche `Custom social API ready on http://localhost:4000` et répond aux requêtes.
+3. **Des commandes de vérification (`curl`)** pour tester votre backend avant de le brancher.
+   ✅ **Résultat attendu :** chaque appel renvoie un JSON valide (pas d'erreur 404/500).
+4. **La procédure de connexion** au frontend et au proxy de production.
+   ✅ **Résultat attendu :** la recherche dans l'interface récupère vos données réelles.
+
+Ce document complète le README sans le surcharger et vous accompagne jusqu'à l'utilisation d'un backend professionnel.
+
 En suivant chacune de ces étapes dans l'ordre, vous disposez d'un environnement complet prêt à être testé localement puis déployé avec vos propres services sociaux.
