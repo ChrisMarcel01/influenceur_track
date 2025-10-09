@@ -64,6 +64,18 @@ Si vous disposez déjà de services distincts pour Instagram, Facebook, X (Twitt
 3. Conservez `VITE_SOCIAL_API_URL` comme valeur de secours : le frontend l'utilise si un réseau n'a pas d'URL dédiée.
    ✅ **Résultat attendu :** chaque plateforme possède sa propre URL (ou une ligne vide), prête à être utilisée par le frontend.
 
+### Étape B4 · Renseigner les clés officielles pour la recherche fédérée
+1. Toujours dans `.env.local`, ajoutez les identifiants nécessaires aux API officielles fournies par YouTube, X et Facebook :
+   ```ini
+   YOUTUBE_API_KEY=cle-fournie-par-google
+   X_BEARER_TOKEN=token-oauth2-fournit-par-x
+   FB_APP_ID=identifiant-de-votre-app-facebook
+   FB_APP_SECRET=secret-de-votre-app-facebook
+   ```
+   > Si vous disposez déjà d’un `FACEBOOK_ACCESS_TOKEN`, laissez-le : il sera utilisé si `FB_APP_ID`/`FB_APP_SECRET` sont absents.
+2. Enregistrez le fichier après avoir collé vos clés.
+   ✅ **Résultat attendu :** chaque variable sensible pointe vers une clé valide prête à être utilisée par le serveur (`/api/search`).
+
 ---
 
 ## Partie C — Lancer l'application en mode démonstration
@@ -90,10 +102,11 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
 
 ### Étape C3 · Vérifier l'interface
 1. Ouvrez votre navigateur et rendez-vous sur `http://localhost:5173/`.
-2. Dans la barre de recherche, tapez au moins **deux lettres** (par exemple « in »). Les suggestions d'influenceurs doivent apparaître immédiatement.
-3. Cliquez sur un résultat : la fiche détaillée s'affiche avec les indicateurs mock.
-4. Si aucune donnée ne remonte, vérifiez que le terminal de l'étape C1 affiche toujours « listening » et qu'aucune erreur rouge n'est apparue.
-   ✅ **Résultat attendu :** les suggestions s'affichent après deux lettres, et la fiche détaillée d'un influenceur mock apparaît après le clic.
+2. Activez ou désactivez les réseaux à interroger à l’aide des pastilles situées au-dessus du champ de recherche (YouTube, X, Facebook, etc.).
+3. Dans la barre de recherche, tapez au moins **deux lettres** (par exemple « in »). Les suggestions d'influenceurs doivent apparaître immédiatement pour les réseaux sélectionnés.
+4. Cliquez sur un résultat : la fiche détaillée s'affiche avec les indicateurs mock.
+5. Si aucune donnée ne remonte, vérifiez que le terminal de l'étape C1 affiche toujours « listening » et qu'aucune erreur rouge n'est apparue.
+   ✅ **Résultat attendu :** les suggestions s'affichent après deux lettres selon les réseaux activés, et la fiche détaillée d'un influenceur mock apparaît après le clic.
 
 ---
 

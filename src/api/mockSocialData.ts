@@ -18,7 +18,15 @@ interface MockInfluencerRecord {
   profile: InfluencerProfileResponse;
 }
 
-interface SearchIndexEntry extends InfluencerSearchResult {
+interface SearchIndexEntry {
+  id: string;
+  platform: Platform;
+  handle: string;
+  name: string;
+  followers: number;
+  location?: string;
+  topics?: string[];
+  verified?: boolean;
   normalizedHandle: string;
 }
 
@@ -28,6 +36,25 @@ function sanitizeHandle(handle: string | undefined): string {
 
 function ensureArrayCopy<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
+}
+
+function buildProfileUrl(platform: Platform, handle: string): string | null {
+  const sanitized = sanitizeHandle(handle);
+  if (!sanitized) return null;
+  switch (platform) {
+    case "instagram":
+      return `https://www.instagram.com/${sanitized}/`;
+    case "tiktok":
+      return `https://www.tiktok.com/@${sanitized}`;
+    case "facebook":
+      return `https://www.facebook.com/${sanitized}`;
+    case "x":
+      return `https://x.com/${sanitized}`;
+    case "youtube":
+      return `https://www.youtube.com/@${sanitized}`;
+    default:
+      return null;
+  }
 }
 
 function normalizeAccounts(accounts: Record<string, PlatformAccount> | undefined) {
@@ -103,15 +130,13 @@ influencers.forEach((record) => {
 
     const metrics = record.profile.platforms?.[platformKey as Platform]?.metrics;
     const followers = metrics?.followers ?? 0;
-    const engagementRate = metrics?.avgEngagement ?? 0;
 
     searchIndex.push({
       id: `${platformKey}:${normalizedHandle}`,
       platform: platformKey as Platform,
       handle: account.handle.startsWith("@") ? account.handle : `@${account.handle}`,
-      displayName: record.displayName,
+      name: record.displayName,
       followers,
-      engagementRate: Math.round(engagementRate * 10) / 10,
       location: record.location,
       topics: record.topics,
       verified: record.verified,
@@ -120,29 +145,50 @@ influencers.forEach((record) => {
   }
 });
 
+function matchesEntry(entry: SearchIndexEntry, normalizedQuery: string): boolean {
+  if (!normalizedQuery) return true;
+  const queryWithoutAt = normalizedQuery.replace(/^@+/, "");
+  const nameMatch = entry.name.toLowerCase().includes(normalizedQuery);
+  const handleMatch = entry.normalizedHandle.includes(queryWithoutAt);
+  const locationMatch = entry.location?.toLowerCase().includes(normalizedQuery);
+  const topicMatch = entry.topics?.some((topic) => topic.toLowerCase().includes(normalizedQuery));
+  return nameMatch || handleMatch || locationMatch || topicMatch;
+}
+
+function toSearchResult(entry: SearchIndexEntry): InfluencerSearchResult {
+  return {
+    id: entry.id,
+    platform: entry.platform,
+    name: entry.name,
+    handle: entry.handle,
+    avatar: null,
+    profileUrl: buildProfileUrl(entry.platform, entry.handle),
+    followers: entry.followers ?? null,
+    verified: entry.verified,
+  };
+}
+
 export function mockSearchInfluencers({
-  platform,
+  platforms,
   query,
   limit,
 }: {
-  platform?: Platform;
+  platforms: Platform[];
   query: string;
   limit: number;
 }): InfluencerSearchResult[] {
   const normalizedQuery = query.toLowerCase();
-  const results = searchIndex
-    .filter((entry) => {
-      if (platform && entry.platform !== platform) return false;
-      if (!normalizedQuery) return true;
-      const nameMatch = entry.displayName.toLowerCase().includes(normalizedQuery);
-      const handleMatch = entry.normalizedHandle.includes(normalizedQuery.replace(/^@+/, ""));
-      const locationMatch = entry.location?.toLowerCase().includes(normalizedQuery);
-      const topicMatch = entry.topics?.some((topic) => topic.toLowerCase().includes(normalizedQuery));
-      return nameMatch || handleMatch || locationMatch || topicMatch;
-    })
-    .sort((a, b) => b.followers - a.followers)
-    .slice(0, limit)
-    .map(({ normalizedHandle: _ignored, ...rest }) => rest);
+  const requested = platforms.length ? Array.from(new Set(platforms)) : Array.from(new Set(searchIndex.map((entry) => entry.platform)));
+  const results: InfluencerSearchResult[] = [];
+
+  requested.forEach((platform) => {
+    const platformResults = searchIndex
+      .filter((entry) => entry.platform === platform && matchesEntry(entry, normalizedQuery))
+      .sort((a, b) => b.followers - a.followers)
+      .slice(0, limit)
+      .map(toSearchResult);
+    results.push(...platformResults);
+  });
 
   return ensureArrayCopy(results);
 }

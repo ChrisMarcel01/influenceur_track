@@ -8,9 +8,11 @@ Ce guide complète le README en vous accompagnant pas à pas dans la création d
 
 Le frontend appelle toujours les endpoints suivants. Quel que soit votre langage, il suffit de respecter ces routes, leurs paramètres et les structures de réponse.
 
+> ⚠️ **Nouveau — recherche fédérée :** la barre de recherche interroge désormais un endpoint unique `/api/search` qui retourne une liste normalisée pour chaque réseau (nom, handle, avatar, URL de profil, followers). Si vous exposez vos propres services, veillez à renvoyer ce format.
+
 | Méthode & chemin | Paramètres | Réponse attendue | Résultat attendu |
 | --- | --- | --- | --- |
-| `GET /search/influencers` | `q` (requis) : texte recherché<br>`platform` (optionnel) : `instagram`, `facebook`, `x`, `tiktok`, `youtube`<br>`limit` (optionnel) | `{ "results": Influencer[] }` | ✅ Le JSON contient un tableau `results` avec au moins les champs `id`, `platform`, `handle`, `displayName`, `followers`, `engagementRate`. |
+| `GET /api/search` | `q` (requis) : texte recherché<br>`platforms` (optionnel) : liste séparée par des virgules (`youtube,x,facebook`…)<br>`limit` (optionnel) | `{ "q": string, "platforms": string[], "results": FederatedResult[] }` où `FederatedResult` contient `id`, `platform`, `name`, `handle`, `avatar`, `profileUrl`, `followers`, `verified`, `note?` | ✅ Chaque réseau renvoie des suggestions cohérentes (nom + handle + avatar + compteur d'abonnés le cas échéant). |
 | `GET /influencers/profile` | `platform` (requis)<br>`handle` (requis) | `InfluencerProfile` complet | ✅ Le JSON décrit un influenceur précis, notamment `accounts`, `summary`, `platforms`, `posts`. |
 | `GET /platforms/:platform/posts` | `handle` (requis)<br>`limit` (optionnel) | `PostSummary[]` | ✅ Tableau de posts pour le réseau demandé. |
 | `GET /platforms/:platform/metrics` | `handle` (requis) | `PlatformMetrics` | ✅ Objet contenant `followers`, `weeklyDelta`, `avgEngagement`, `posts7d`. |

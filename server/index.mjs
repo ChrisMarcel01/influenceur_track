@@ -94,6 +94,15 @@ for (const platformId of platformIds) {
   }
 }
 
+const youtubeApiKey = process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY || "";
+const xBearerToken =
+  process.env.X_BEARER_TOKEN || process.env.TWITTER_BEARER_TOKEN || process.env.TWITTER_API_TOKEN || "";
+const facebookAppId = process.env.FB_APP_ID || process.env.FACEBOOK_APP_ID || "";
+const facebookAppSecret = process.env.FB_APP_SECRET || process.env.FACEBOOK_APP_SECRET || "";
+const facebookAccessToken = process.env.FACEBOOK_ACCESS_TOKEN || "";
+
+const DEFAULT_FEDERATED_PLATFORMS = ["youtube", "x", "facebook"];
+
 function buildInstagramCookieHeader() {
   const cookies = [];
   if (instagramCookie) {
@@ -307,6 +316,381 @@ function mockSearch({ platform, query, limit }) {
     .sort((a, b) => b.followers - a.followers)
     .slice(0, limit)
     .map(({ normalizedHandle, ...rest }) => rest);
+}
+
+function resolveFacebookToken() {
+  if (facebookAccessToken) {
+    return facebookAccessToken;
+  }
+  if (facebookAppId && facebookAppSecret) {
+    return `${facebookAppId}|${facebookAppSecret}`;
+  }
+  return "";
+}
+
+function normalizePlatformsQuery(input) {
+  if (!input) return [];
+  return input
+    .split(/[,\s]+/)
+    .map((value) => normalizePlatformKey(value))
+    .filter((value) => value !== null);
+}
+
+function normalizeLimit(value, fallback = 10) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return Math.min(Math.round(numeric), 25);
+  }
+  return fallback;
+}
+
+function parseFollowers(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0) return null;
+  return Math.round(numeric);
+}
+
+function ensureHandle(value) {
+  if (!value) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  return trimmed.startsWith("@") ? trimmed : `@${trimmed.replace(/^@+/, "")}`;
+}
+
+function buildResult({
+  platform,
+  id,
+  name,
+  handle,
+  avatar,
+  profileUrl,
+  followers,
+  verified,
+  note,
+}) {
+  return {
+    platform,
+    id: id || `${platform}:${Date.now()}`,
+    name: name || handle || platformLabels[platform] || "Profil",
+    handle: ensureHandle(handle),
+    avatar: avatar || null,
+    profileUrl: profileUrl || null,
+    followers: followers !== undefined ? parseFollowers(followers) : null,
+    verified: typeof verified === "boolean" ? verified : undefined,
+    note: note || undefined,
+  };
+}
+
+async function fetchJsonResponse(url, options = {}) {
+  const response = await fetch(url, options);
+  const text = await response.text();
+  let jsonData = null;
+  if (text) {
+    try {
+      jsonData = JSON.parse(text);
+    } catch (error) {
+      const snippet = text.replace(/\s+/g, " ").slice(0, 160);
+      const message = `Réponse JSON invalide (${url}): ${snippet}`;
+      const err = new Error(message);
+      err.status = response.status;
+      throw err;
+    }
+  }
+  if (!response.ok) {
+    const message = jsonData?.error?.message || jsonData?.error || text || `Requête échouée (${response.status})`;
+    const err = new Error(message);
+    err.status = response.status;
+    throw err;
+  }
+  return jsonData;
+}
+
+async function searchYouTubeChannels(query, limit) {
+  if (!youtubeApiKey) {
+    throw new Error("Ajoutez YOUTUBE_API_KEY dans votre .env pour activer la recherche YouTube.");
+  }
+  const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
+  searchUrl.searchParams.set("part", "id");
+  searchUrl.searchParams.set("type", "channel");
+  searchUrl.searchParams.set("maxResults", String(Math.min(limit, 20)));
+  searchUrl.searchParams.set("q", query);
+  searchUrl.searchParams.set("key", youtubeApiKey);
+
+  const searchData = await fetchJsonResponse(searchUrl);
+  const channelIds = Array.isArray(searchData?.items)
+    ? searchData.items
+        .map((item) => item?.id?.channelId)
+        .filter((value) => typeof value === "string" && value.trim())
+    : [];
+  if (!channelIds.length) {
+    return [];
+  }
+
+  const detailsUrl = new URL("https://www.googleapis.com/youtube/v3/channels");
+  detailsUrl.searchParams.set("part", "snippet,statistics");
+  detailsUrl.searchParams.set("id", channelIds.join(","));
+  detailsUrl.searchParams.set("maxResults", String(Math.min(limit, 20)));
+  detailsUrl.searchParams.set("key", youtubeApiKey);
+
+  const detailsData = await fetchJsonResponse(detailsUrl);
+  const items = Array.isArray(detailsData?.items) ? detailsData.items : [];
+  return items.slice(0, limit).map((channel) => {
+    const snippet = channel?.snippet || {};
+    const statistics = channel?.statistics || {};
+    const thumbnails = snippet?.thumbnails || {};
+    const avatar = thumbnails.high?.url || thumbnails.medium?.url || thumbnails.default?.url || null;
+    const customUrl = snippet?.customUrl || snippet?.vanityUrl;
+    const handle = customUrl ? ensureHandle(customUrl) : null;
+    const normalizedCustomUrl = typeof customUrl === "string" ? customUrl.replace(/^https?:\/\//i, "").replace(/^www\./i, "") : "";
+    const profileUrl = normalizedCustomUrl
+      ? `https://www.youtube.com/${normalizedCustomUrl.replace(/^\//, "")}`
+      : channel?.id
+        ? `https://www.youtube.com/channel/${channel.id}`
+        : null;
+    return buildResult({
+      platform: "youtube",
+      id: channel?.id,
+      name: snippet?.title,
+      handle,
+      avatar,
+      profileUrl,
+      followers: statistics?.subscriberCount,
+      verified: undefined,
+    });
+  });
+}
+
+async function searchXUsers(query, limit) {
+  if (!xBearerToken) {
+    throw new Error("Ajoutez X_BEARER_TOKEN (ou TWITTER_BEARER_TOKEN) dans votre .env pour activer la recherche X/Twitter.");
+  }
+  const url = new URL("https://api.twitter.com/1.1/users/search.json");
+  url.searchParams.set("q", query);
+  url.searchParams.set("count", String(Math.min(limit, 20)));
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${xBearerToken}`,
+    },
+  });
+  const text = await response.text();
+  let data = [];
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch (error) {
+      const snippet = text.replace(/\s+/g, " ").slice(0, 160);
+      throw new Error(`Réponse X invalide : ${snippet}`);
+    }
+  }
+  if (!response.ok) {
+    const message = Array.isArray(data?.errors) && data.errors.length ? data.errors[0]?.message : null;
+    throw new Error(message || `X a renvoyé le statut ${response.status}`);
+  }
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  return data.slice(0, limit).map((user) => {
+    const screenName = user?.screen_name;
+    const handle = ensureHandle(screenName);
+    const avatarUrl = typeof user?.profile_image_url_https === "string"
+      ? user.profile_image_url_https.replace(/_normal(\.\w+)$/, "$1")
+      : user?.profile_image_url_https || null;
+    return buildResult({
+      platform: "x",
+      id: user?.id_str || String(user?.id || screenName || ""),
+      name: user?.name,
+      handle,
+      avatar: avatarUrl,
+      profileUrl: screenName ? `https://x.com/${screenName}` : null,
+      followers: user?.followers_count,
+      verified: Boolean(user?.verified),
+    });
+  });
+}
+
+async function searchFacebookPages(query, limit) {
+  const token = resolveFacebookToken();
+  if (!token) {
+    throw new Error(
+      "Ajoutez FB_APP_ID et FB_APP_SECRET ou bien FACEBOOK_ACCESS_TOKEN pour activer la recherche Facebook Pages.",
+    );
+  }
+  const url = new URL("https://graph.facebook.com/v19.0/pages/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", String(Math.min(limit, 25)));
+  url.searchParams.set("access_token", token);
+  url.searchParams.set("fields", "id,name,username,link,fan_count,followers_count,picture{url},verification_status,is_verified");
+
+  const data = await fetchJsonResponse(url);
+  const items = Array.isArray(data?.data) ? data.data : [];
+  return items.slice(0, limit).map((page) => {
+    const username = page?.username;
+    const handle = ensureHandle(username);
+    const followers = page?.followers_count ?? page?.fan_count;
+    const pictureUrl = page?.picture?.data?.url || null;
+    const verified =
+      typeof page?.is_verified === "boolean"
+        ? page.is_verified
+        : typeof page?.verification_status === "string"
+          ? /verified/i.test(page.verification_status)
+          : undefined;
+    return buildResult({
+      platform: "facebook",
+      id: page?.id,
+      name: page?.name,
+      handle,
+      avatar: pictureUrl,
+      profileUrl: page?.link || (page?.id ? `https://facebook.com/${page.id}` : null),
+      followers,
+      verified,
+    });
+  });
+}
+
+async function lookupInstagramByHandle(query) {
+  if (!query.startsWith("@")) {
+    throw new Error("Instagram nécessite un @handle exact (ex : @createur). Tapez le pseudo complet.");
+  }
+  const handle = sanitizeHandle(query);
+  if (!handle) {
+    throw new Error("Handle Instagram invalide.");
+  }
+  try {
+    const snapshot = await fetchInstagramSnapshot(handle);
+    const profile = snapshot?.profile || {};
+    const accounts = profile?.accounts || {};
+    const instagramAccount = accounts?.instagram || {};
+    const followers = snapshot?.metrics?.followers ?? null;
+    return [
+      buildResult({
+        platform: "instagram",
+        id: instagramAccount?.externalId || `instagram:${handle}`,
+        name: profile?.displayName || instagramAccount?.displayName || `@${handle}`,
+        handle: instagramAccount?.handle || `@${handle}`,
+        avatar: instagramAccount?.avatarUrl || null,
+        profileUrl: `https://www.instagram.com/${handle}/`,
+        followers,
+        verified: instagramAccount?.verified,
+      }),
+    ];
+  } catch (error) {
+    if (typeof error?.status === "number" && error.status === 404) {
+      throw new Error(`Aucun profil Instagram trouvé pour @${handle}.`);
+    }
+    throw new Error(error?.message || "Impossible d'interroger Instagram.");
+  }
+}
+
+async function lookupTikTokByHandle(query) {
+  if (!query.startsWith("@")) {
+    throw new Error("TikTok nécessite un @handle exact (ex : @createur). Tapez le pseudo complet.");
+  }
+  const handle = sanitizeHandle(query);
+  if (!handle) {
+    throw new Error("Handle TikTok invalide.");
+  }
+  return [
+    buildResult({
+      platform: "tiktok",
+      id: `tiktok:${handle}`,
+      name: `@${handle}`,
+      handle: `@${handle}`,
+      avatar: null,
+      profileUrl: `https://www.tiktok.com/@${handle}`,
+      followers: null,
+      note:
+        "Connectez l'API officielle TikTok (Display API) ou un service tiers pour enrichir ce résultat après authentification.",
+    }),
+  ];
+}
+
+const federatedAdapters = {
+  youtube: searchYouTubeChannels,
+  x: searchXUsers,
+  facebook: searchFacebookPages,
+  instagram: lookupInstagramByHandle,
+  tiktok: lookupTikTokByHandle,
+};
+
+function normalizeAdapterError(platform, error) {
+  if (!error) return `Recherche ${platformLabels[platform] || platform} indisponible.`;
+  if (typeof error === "string") return error;
+  if (typeof error.message === "string" && error.message.trim()) return error.message.trim();
+  return `Recherche ${platformLabels[platform] || platform} indisponible.`;
+}
+
+async function executePlatformSearch(platform, query, limit) {
+  const adapter = federatedAdapters[platform];
+  if (!adapter) {
+    return {
+      platform,
+      results: [],
+      error: {
+        platform,
+        message: `Aucun adaptateur disponible pour ${platformLabels[platform] || platform}.`,
+      },
+    };
+  }
+  try {
+    const results = await adapter(query, limit);
+    return { platform, results: Array.isArray(results) ? results : [] };
+  } catch (error) {
+    return {
+      platform,
+      results: [],
+      error: {
+        platform,
+        message: normalizeAdapterError(platform, error),
+      },
+    };
+  }
+}
+
+async function handleFederatedSearch(req, res, url) {
+  if (req.method !== "GET") {
+    json(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const rawQuery = url.searchParams.get("q") || "";
+  const query = rawQuery.trim();
+  if (!query) {
+    json(res, 400, { error: "Paramètre 'q' requis" });
+    return;
+  }
+
+  const limit = normalizeLimit(url.searchParams.get("limit"));
+  const requestedPlatforms = normalizePlatformsQuery(url.searchParams.get("platforms"));
+  const normalizedPlatforms = requestedPlatforms.length ? requestedPlatforms : DEFAULT_FEDERATED_PLATFORMS;
+  const uniquePlatforms = Array.from(new Set(normalizedPlatforms.filter((platform) => platformIds.includes(platform))));
+  if (!uniquePlatforms.length) {
+    uniquePlatforms.push(...DEFAULT_FEDERATED_PLATFORMS);
+  }
+
+  const outcomes = await Promise.all(uniquePlatforms.map((platform) => executePlatformSearch(platform, query, limit)));
+
+  const results = [];
+  const errors = [];
+  for (const outcome of outcomes) {
+    if (Array.isArray(outcome.results) && outcome.results.length) {
+      results.push(...outcome.results);
+    }
+    if (outcome.error) {
+      errors.push({
+        platform: outcome.error.platform,
+        message: outcome.error.message,
+      });
+    }
+  }
+
+  json(res, 200, {
+    q: query,
+    platforms: uniquePlatforms,
+    limit,
+    results,
+    errors: errors.length ? errors : undefined,
+  });
 }
 
 function getProfileRecord(platform, handle) {
@@ -862,6 +1246,11 @@ const server = createServer(async (req, res) => {
     }
 
     const url = new URL(req.url, `http://${req.headers.host || `${host}:${port}`}`);
+
+    if (url.pathname === "/api/search") {
+      await handleFederatedSearch(req, res, url);
+      return;
+    }
 
     if (url.pathname.startsWith("/api/social")) {
       await handleApi(req, res, url);

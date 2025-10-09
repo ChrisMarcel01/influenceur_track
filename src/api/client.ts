@@ -92,8 +92,17 @@ export class SocialApiError extends Error {
   }
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const baseUrl = resolveBaseUrl(path);
+export async function request<T>(
+  path: string,
+  init?: RequestInit,
+  options?: {
+    baseUrl?: string | null;
+  },
+): Promise<T> {
+  const baseUrl =
+    options && Object.prototype.hasOwnProperty.call(options, "baseUrl")
+      ? options.baseUrl ?? ""
+      : resolveBaseUrl(path);
   const url = joinBaseWithPath(baseUrl, path);
 
   try {
