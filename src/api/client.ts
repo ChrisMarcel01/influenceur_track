@@ -105,13 +105,36 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
 
+    const contentType = response.headers.get("content-type") || "";
+    const bodyText = await response.text().catch(() => "");
+
     if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      const message = text || `Request failed with status ${response.status}`;
+      const message = bodyText || `Request failed with status ${response.status}`;
       throw new SocialApiError(message, { status: response.status, baseUrl });
     }
 
-    return (await response.json()) as T;
+    const trimmedBody = bodyText.trim();
+    const expectsJson = /json/i.test(contentType);
+    if (!expectsJson && trimmedBody) {
+      const snippet = trimmedBody.replace(/\s+/g, " ").slice(0, 160);
+      const message =
+        contentType && !expectsJson
+          ? `Réponse non JSON (${contentType}) : ${snippet}`
+          : `Réponse non JSON reçue : ${snippet}`;
+      throw new SocialApiError(message, { status: response.status, baseUrl });
+    }
+
+    if (!trimmedBody) {
+      throw new SocialApiError("Réponse vide reçue depuis l'API", { status: response.status, baseUrl });
+    }
+
+    try {
+      return JSON.parse(trimmedBody) as T;
+    } catch (parseError) {
+      const snippet = trimmedBody.replace(/\s+/g, " ").slice(0, 160);
+      const message = `Réponse JSON invalide : ${snippet || "(vide)"}`;
+      throw new SocialApiError(message, { status: response.status, cause: parseError, baseUrl });
+    }
   } catch (error) {
     if (error instanceof SocialApiError) {
       throw error;
