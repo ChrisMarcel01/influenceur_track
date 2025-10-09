@@ -273,3 +273,64 @@ SOCIAL_PROXY_TARGET_FACEBOOK=https://mon-backend.facebook.local
 ---
 
 En suivant ces étapes, vous disposez d'un backend personnalisable conforme aux attentes du frontend. Remplacez progressivement les données statiques par vos propres sources (base de données, API tierces, fichiers CSV, etc.) sans modifier le contrat d'API.
+
+---
+
+## 6. Construire des APIs dédiées par réseau
+
+Si vous préférez séparer vos services (un backend par réseau social), vous pouvez partir du squelette précédent et conserver uniquement les données pertinentes pour chaque plateforme. Voici comment procéder et pourquoi chaque API est essentielle.
+
+### 6.1 · Instagram — suivi de l'engagement visuel
+1. **Copiez** `server.mjs` dans un nouveau dossier `api-instagram/` et ne laissez dans le tableau `influencers` que les profils Instagram.
+2. **Exposez** uniquement les routes `GET /search/influencers`, `GET /influencers/profile` et `GET /platforms/instagram/*`.
+3. **Mesurez** l'engagement par format (`Photo`, `Story`, `Reels`) dans `engagementByFormat` afin d'alimenter les graphes du frontend.
+   ✅ **Résultat attendu :** une requête `curl http://localhost:4001/platforms/instagram/metrics?handle=@...` renvoie les métriques du compte.
+
+> 💡 **Pourquoi c'est important ?** Instagram est souvent la source principale de campagnes influenceurs ; fournir des chiffres précis garantit que vos équipes marketing visualisent la croissance, le reach et l'engagement visuel directement dans l'app.
+
+### 6.2 · Facebook — audiences et démographie
+1. **Créez** un dossier `api-facebook/` et ajustez le port (par exemple `process.env.PORT || 4002`).
+2. **Ajoutez** des champs spécifiques comme `pageId`, `audienceSplit` ou `paidReach` dans `platforms.facebook.metrics` si vous les collectez.
+3. **Assurez-vous** que `followersSeries` couvre des périodes hebdomadaires pour alimenter le graphique d'historique.
+   ✅ **Résultat attendu :** `curl http://localhost:4002/platforms/facebook/followers?handle=@...&weeks=8` retourne une série ordonnée.
+
+> 💡 **Pourquoi c'est important ?** Facebook concentre souvent des audiences plus âgées ou localisées. En exposant ces métriques séparément, vous pouvez piloter vos campagnes multi-réseaux sans mélanger des indicateurs hétérogènes.
+
+### 6.3 · X (Twitter) — temps réel et viralité
+1. **Dupliquez** le squelette dans `api-x/` (port `4003`).
+2. **Complétez** `posts` avec les champs adaptés (`retweets`, `quotes`, `likes`, `impressions`).
+3. **Retournez** une série de métriques courte (7 à 14 jours) pour refléter la nature temps réel du réseau.
+   ✅ **Résultat attendu :** `curl http://localhost:4003/platforms/x/posts?handle=@...&limit=5` fournit les derniers tweets structurés.
+
+> 💡 **Pourquoi c'est important ?** L'application affiche les formats les plus performants pour X. Sans ces chiffres, vous ne pouvez pas détecter rapidement les publications virales ou les baisses d'engagement.
+
+### 6.4 · TikTok — performances vidéo
+1. **Isoler** l'API dans `api-tiktok/` (port `4004`) et stocker les KPI spécifiques (`avgWatchTime`, `shares`, `plays`).
+2. **Adapter** `engagementByFormat` pour refléter vos catégories (par exemple `Live`, `Short`, `Collab`).
+3. **Garder** des `posts` avec URL directe vers les vidéos pour que les équipes puissent vérifier les contenus.
+   ✅ **Résultat attendu :** `curl http://localhost:4004/platforms/tiktok/engagement?handle=@...` renvoie les pourcentages par format.
+
+> 💡 **Pourquoi c'est important ?** TikTok est piloté par la performance vidéo. Les données par format et les courbes de followers permettent de valider l'efficacité d'une stratégie de contenus courts.
+
+### 6.5 · YouTube — profondeur analytique
+1. **Créer** `api-youtube/` (port `4005`) et renseigner `platforms.youtube.metrics` avec `subscribers`, `avgViewDuration`, `videos30d`, etc.
+2. **Structurer** `posts` pour inclure `title`, `views`, `likes`, `comments`, `publishedAt`, `thumbnail`.
+3. **Fournir** `followersSeries` basée sur des périodes mensuelles ou hebdomadaires selon votre reporting.
+   ✅ **Résultat attendu :** `curl http://localhost:4005/platforms/youtube/metrics?handle=@...` renvoie les KPI vidéo clés.
+
+> 💡 **Pourquoi c'est important ?** YouTube offre des métriques longues traînes (watch time, fidélité). Les exposer clairement aide vos analystes à comparer la performance des vidéos longues face aux formats courts d'autres plateformes.
+
+### 6.6 · Brancher les APIs multiples
+1. **Renseignez** côté frontend :
+   ```ini
+   VITE_SOCIAL_API_URL_INSTAGRAM=http://localhost:4001
+   VITE_SOCIAL_API_URL_FACEBOOK=http://localhost:4002
+   VITE_SOCIAL_API_URL_X=http://localhost:4003
+   VITE_SOCIAL_API_URL_TIKTOK=http://localhost:4004
+   VITE_SOCIAL_API_URL_YOUTUBE=http://localhost:4005
+   ```
+2. **Configurez** le proxy de production (`server/.env`) avec les variables `SOCIAL_PROXY_TARGET_<RÉSEAU>` correspondantes.
+3. **Relancez** `npm run dev` (ou `npm run start`) puis testez chaque moteur de recherche dans l'interface.
+   ✅ **Résultat attendu :** la barre de recherche renvoie les profils spécifiques à la plateforme sélectionnée et les graphes affichent les données propres à chaque API.
+
+> 💡 **Pourquoi c'est important ?** Segmenter les APIs par réseau simplifie la maintenance (déploiements indépendants, quotas adaptés) et vous permet d'activer/mettre en pause un canal sans impacter les autres. L'application détecte automatiquement la meilleure source via les variables d'environnement.
