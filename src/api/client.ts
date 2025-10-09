@@ -33,12 +33,7 @@ const ALLOW_MOCK_FALLBACK = (() => {
   if (explicit !== undefined) {
     return explicit;
   }
-  // When no backend URL is configured we automatically fall back to the mock dataset
-  // to keep the experience usable out of the box. As soon as a custom backend is set
-  // we assume the developer wants to validate it locally, so we disable the fallback
-  // unless it is explicitly re-enabled through VITE_ALLOW_MOCK_FALLBACK.
-  const hasCustomApi = Boolean(rawEnv.VITE_SOCIAL_API_URL) || PLATFORM_BASE_URLS.size > 0;
-  return !hasCustomApi;
+  return false;
 })();
 
 function extractPlatformFromPath(path: string): Platform | null {

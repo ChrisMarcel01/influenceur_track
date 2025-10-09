@@ -38,15 +38,16 @@ Ce document décrit **pas à pas** tout ce qu'il faut faire pour tester l'applic
    > Sous Windows PowerShell, la commande équivalente est `Copy-Item .env.example .env.local`.
    ✅ **Résultat attendu :** un fichier `.env.local` apparaît à la racine du projet.
 
-### Étape B2 · Activer les données de démonstration
+### Étape B2 · (Optionnel) Activer les données de démonstration
 1. Ouvrez le fichier `.env.local` dans un éditeur de texte (Bloc-notes, VS Code, etc.).
-2. Vérifiez que les lignes suivantes existent **exactement** ainsi :
+2. Si vous souhaitez utiliser la base d'exemples fournie, ajoutez ou vérifiez les lignes suivantes :
    ```ini
    VITE_SOCIAL_API_URL=http://localhost:3030
    VITE_ALLOW_MOCK_FALLBACK=true
    ```
+   Laissez `VITE_ALLOW_MOCK_FALLBACK` vide ou à `false` si vous voulez privilégier les données réelles.
 3. Enregistrez le fichier.
-   ✅ **Résultat attendu :** `.env.local` contient ces deux lignes, garantissant que le frontend utilise l'API mock locale et dispose d'un secours interne.
+   ✅ **Résultat attendu :** les variables reflètent votre choix : `true` pour activer le mock, `false` (ou vide) pour forcer les données live.
 
 ### Étape B3 · (Optionnel) Préparer vos propres API par réseau
 Si vous disposez déjà de services distincts pour Instagram, Facebook, X (Twitter), TikTok ou YouTube, vous pouvez préparer leurs URL dès maintenant.
@@ -101,9 +102,10 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
 ### Étape D1 · Remplacer l'API par défaut par votre backend unique
 1. Ouvrez `.env.local`.
 2. Remplacez `VITE_SOCIAL_API_URL` par l'URL de votre API (ex :`https://api.mondomaine.com/social`).
-3. Si vous souhaitez **obliger** l'application à n'utiliser que votre backend, passez `VITE_ALLOW_MOCK_FALLBACK` à `false`.
+3. Pour empêcher tout retour aux données de démonstration, assurez-vous que `VITE_ALLOW_MOCK_FALLBACK` est laissé vide ou à `false` (valeur par défaut).
 4. Redémarrez les serveurs (`Ctrl+C` dans chaque terminal, puis relancez les étapes C1 et C2) pour prendre en compte les nouveaux réglages.
    ✅ **Résultat attendu :** le frontend interroge désormais votre API principale ; les suggestions reflètent vos données si l'endpoint répond correctement.
+   > ℹ️ **Sans backend personnalisé** : si vous construisez puis lancez `npm run start` sans configurer de proxy, le serveur Node intégré interroge automatiquement Instagram (recherche et fiches publiques) pour fournir des données réelles.
 
 ### Étape D2 · Configurer une URL par réseau
 1. Dans `.env.local`, remplissez les variables `VITE_SOCIAL_API_URL_<RÉSEAU>` créées à l'étape B3 avec les URL réelles de vos services.
@@ -185,7 +187,7 @@ Cette partie démarre les deux serveurs nécessaires : l'API de démonstration e
 
 | Symptôme | Diagnostic | Solution détaillée |
 | --- | --- | --- |
-| « Failed to fetch » lors d'une recherche | Le backend n'est pas accessible ou refuse la requête | Vérifiez que `npm run mock:api` est actif ou que vos URL `VITE_SOCIAL_API_URL_*` répondent en testant avec `curl`. Activez `VITE_ALLOW_MOCK_FALLBACK=true` pour rétablir les données de démonstration le temps de corriger votre API. |
+| « Failed to fetch » lors d'une recherche | Le backend n'est pas accessible ou refuse la requête | Vérifiez que `npm run mock:api` est actif ou que vos URL `VITE_SOCIAL_API_URL_*` répondent en testant avec `curl`. Positionnez `VITE_ALLOW_MOCK_FALLBACK=true` uniquement si vous souhaitez basculer temporairement sur les données de démonstration. |
 | Aucune suggestion n'apparaît | Moins de deux caractères saisis | Tapez au moins deux lettres. Vérifiez dans `.env.local` que les URL sont correctes et redémarrez `npm run dev`. |
 | Erreur CORS dans la console | Votre API bloque les requêtes provenant du navigateur | Ajoutez `Access-Control-Allow-Origin: *` (ou votre domaine) côté backend, puis réessayez. |
 | Les URL personnalisées ne sont pas prises en compte | Le serveur n'a pas été relancé après modification | Appuyez sur `Ctrl+C` dans les terminaux, relancez `npm run mock:api` puis `npm run dev` (ou `npm run start`) afin de recharger la configuration. |

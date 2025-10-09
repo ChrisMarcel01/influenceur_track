@@ -44,6 +44,15 @@ const port = Number(process.env.PORT || process.env.SERVER_PORT || 4173);
 const host = process.env.HOST || "0.0.0.0";
 const defaultProxyTarget = process.env.SOCIAL_PROXY_TARGET || process.env.SOCIAL_API_TARGET || "";
 
+const instagramSessionId =
+  process.env.INSTAGRAM_SESSIONID || process.env.INSTAGRAM_SESSION_ID || process.env.IG_SESSIONID || "";
+const instagramCookie = process.env.INSTAGRAM_COOKIE || "";
+const instagramUserAgent =
+  process.env.INSTAGRAM_USER_AGENT ||
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+const instagramAppId = process.env.INSTAGRAM_APP_ID || "936619743392459";
+const instagramCacheMs = Math.max(0, Number(process.env.INSTAGRAM_CACHE_SECONDS || 300)) * 1000;
+
 const distDir = path.resolve(process.cwd(), "dist");
 const fallbackHtmlPath = path.join(distDir, "index.html");
 
@@ -84,6 +93,32 @@ for (const platformId of platformIds) {
     platformProxyTargets.set(platformId, value.trim());
   }
 }
+
+function buildInstagramCookieHeader() {
+  const cookies = [];
+  if (instagramCookie) {
+    cookies.push(instagramCookie.trim());
+  }
+  if (instagramSessionId) {
+    const hasAssignment = /sessionid\s*=/.test(instagramSessionId);
+    cookies.push(hasAssignment ? instagramSessionId.trim() : `sessionid=${instagramSessionId.trim()}`);
+  }
+  return cookies.length ? cookies.join("; ") : "";
+}
+
+const instagramBaseHeaders = {
+  Accept: "application/json",
+  "Accept-Language": "en-US,en;q=0.9,fr;q=0.8",
+  "User-Agent": instagramUserAgent,
+  Referer: "https://www.instagram.com/",
+  "X-Requested-With": "XMLHttpRequest",
+  "X-IG-App-ID": instagramAppId,
+};
+
+const instagramCookieHeader = buildInstagramCookieHeader();
+
+const instagramProfileCache = new Map();
+const instagramSearchCache = new Map();
 
 function log(message, extra) {
   const base = `[server] ${message}`;
@@ -164,6 +199,30 @@ function normalizePlatforms(platformsInput) {
   return normalized;
 }
 
+function getInstagramHeaders() {
+  const headers = { ...instagramBaseHeaders };
+  if (instagramCookieHeader) {
+    headers.Cookie = instagramCookieHeader;
+  }
+  return headers;
+}
+
+function getCachedValue(cache, key) {
+  if (!instagramCacheMs) return null;
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > instagramCacheMs) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCachedValue(cache, key, value) {
+  if (!instagramCacheMs) return;
+  cache.set(key, { timestamp: Date.now(), value });
+}
+
 const profileIndex = new Map();
 const searchIndex = [];
 
@@ -221,6 +280,12 @@ function json(res, status, payload) {
 
 function notFound(res, message = "Not found") {
   json(res, 404, { error: message });
+}
+
+function handleInstagramError(res, error) {
+  const status = typeof error?.status === "number" ? error.status : 502;
+  const message = error?.message || "Instagram request failed";
+  json(res, status, { error: message });
 }
 
 function toFollowersPoints(series = []) {
@@ -283,6 +348,207 @@ function buildMockMetrics(platform, handle) {
   if (!record) return null;
   const metrics = record.profile.platforms?.[platform]?.metrics;
   return metrics ? cloneValue(metrics) : null;
+}
+
+function determineInstagramFormat(node) {
+  if (!node) return "Post";
+  const productType = node.product_type || "";
+  const typename = node.__typename || "";
+  if (productType.toLowerCase() === "clips") return "Reel";
+  if (/igtv/i.test(productType) || /igtv/i.test(typename)) return "IGTV";
+  if (/video/i.test(productType) || /video/i.test(typename)) return "Vidéo";
+  if (/sidecar/i.test(typename)) return "Carrousel";
+  if (/graphimage/i.test(typename)) return "Photo";
+  return "Post";
+}
+
+function mapInstagramPost(node, username) {
+  if (!node) return null;
+  const takenAt = Number(node.taken_at_timestamp) * 1000;
+  if (!Number.isFinite(takenAt) || takenAt <= 0) return null;
+  const dateIso = new Date(takenAt).toISOString();
+  const likeCount = node.edge_liked_by?.count ?? node.edge_media_preview_like?.count ?? 0;
+  const commentCount = node.edge_media_to_comment?.count ?? 0;
+  const captionEdge = node.edge_media_to_caption?.edges?.[0]?.node?.text ?? "";
+  const trimmedCaption = captionEdge.trim();
+  const title = trimmedCaption ? trimmedCaption.slice(0, 140) : `Publication du ${new Date(takenAt).toLocaleDateString("fr-FR")}`;
+  const shortcode = node.shortcode || node.code || "";
+  const id = node.id || (shortcode ? `instagram:${shortcode}` : `instagram:${username}:${takenAt}`);
+  const url = shortcode ? `https://www.instagram.com/p/${shortcode}/` : undefined;
+  const format = determineInstagramFormat(node);
+  return {
+    summary: {
+      id,
+      platform: "instagram",
+      title,
+      likes: likeCount,
+      comments: commentCount,
+      date: dateIso,
+      url,
+    },
+    format,
+  };
+}
+
+async function fetchInstagramJson(url) {
+  const response = await fetch(url, {
+    headers: getInstagramHeaders(),
+  });
+  if (response.status === 429) {
+    throw new Error("Instagram rate limit reached");
+  }
+  if (response.status === 404) {
+    const error = new Error("Instagram profile not found");
+    error.status = 404;
+    throw error;
+  }
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    const error = new Error(errorText || `Instagram responded with status ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+async function fetchInstagramSearchResults(query, limit) {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return [];
+  const cacheKey = `${normalizedQuery.toLowerCase()}::${limit}`;
+  const cached = getCachedValue(instagramSearchCache, cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const searchUrl = new URL("https://www.instagram.com/web/search/topsearch/");
+  searchUrl.searchParams.set("context", "blended");
+  searchUrl.searchParams.set("query", normalizedQuery);
+  searchUrl.searchParams.set("count", String(Math.min(Math.max(limit, 1), 30)));
+
+  const data = await fetchInstagramJson(searchUrl);
+  const users = Array.isArray(data?.users) ? data.users : [];
+
+  const results = users
+    .map((entry) => {
+      const user = entry?.user;
+      if (!user?.username) return null;
+      const handle = `@${user.username}`;
+      const followerCount = user.follower_count ?? user.search_follower_count ?? 0;
+      return {
+        id: `instagram:${user.pk || user.pk_id || user.username}`,
+        platform: "instagram",
+        handle,
+        displayName: user.full_name || user.username,
+        followers: followerCount,
+        engagementRate: 0,
+        location: user.city_name || user.city || undefined,
+        topics: undefined,
+        verified: Boolean(user.is_verified),
+      };
+    })
+    .filter((result) => result !== null)
+    .slice(0, limit);
+
+  setCachedValue(instagramSearchCache, cacheKey, results);
+  return results;
+}
+
+async function fetchInstagramSnapshot(handle) {
+  const normalizedHandle = sanitizeHandle(handle);
+  if (!normalizedHandle) {
+    const error = new Error("Instagram handle is required");
+    error.status = 400;
+    throw error;
+  }
+
+  const cached = getCachedValue(instagramProfileCache, normalizedHandle);
+  if (cached) {
+    return cached;
+  }
+
+  const profileUrl = new URL("https://www.instagram.com/api/v1/users/web_profile_info/");
+  profileUrl.searchParams.set("username", normalizedHandle);
+  const data = await fetchInstagramJson(profileUrl);
+  const user = data?.data?.user;
+  if (!user) {
+    const error = new Error("Profil Instagram introuvable");
+    error.status = 404;
+    throw error;
+  }
+
+  const username = user.username || normalizedHandle;
+  const mappedPosts = Array.isArray(user.edge_owner_to_timeline_media?.edges)
+    ? user.edge_owner_to_timeline_media.edges
+        .map((edge) => mapInstagramPost(edge?.node, username))
+        .filter((value) => value !== null)
+    : [];
+
+  const posts = mappedPosts.map((item) => item.summary);
+  const totalInteractions = mappedPosts.reduce((sum, item) => sum + item.summary.likes + item.summary.comments, 0);
+  const followers = user.edge_followed_by?.count ?? 0;
+  const avgInteractions = posts.length ? totalInteractions / posts.length : 0;
+  const avgEngagement = followers > 0 ? Math.round((avgInteractions / followers) * 1000) / 10 : 0;
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const posts7d = posts.filter((post) => new Date(post.date).getTime() >= sevenDaysAgo).length;
+
+  const engagementByFormat = mappedPosts.reduce((acc, item) => {
+    const key = item.format || "Post";
+    const score = item.summary.likes + item.summary.comments;
+    acc[key] = (acc[key] || 0) + score;
+    return acc;
+  }, {});
+
+  const growthSeries = Array.from({ length: 12 }, () => followers);
+  const followersSeries = Array.from({ length: 12 }, (_, index) => {
+    const weeksAgo = 11 - index;
+    const date = new Date(Date.now() - weeksAgo * 7 * 24 * 60 * 60 * 1000);
+    return {
+      period: date.toISOString().slice(0, 10),
+      followers,
+    };
+  });
+
+  const metrics = {
+    followers,
+    weeklyDelta: 0,
+    avgEngagement,
+    posts7d,
+  };
+
+  const profile = {
+    displayName: user.full_name || username,
+    accounts: {
+      instagram: {
+        handle: `@${username}`,
+        displayName: user.full_name || username,
+        externalId: String(user.id || user.pk || username),
+      },
+    },
+    summary: {
+      growthSeries,
+      engagementByFormat,
+    },
+    platforms: {
+      instagram: {
+        metrics,
+        followersSeries,
+        engagementByFormat,
+        posts,
+      },
+    },
+    posts,
+  };
+
+  const snapshot = {
+    profile,
+    metrics,
+    posts,
+    followersSeries,
+    engagementByFormat,
+  };
+
+  setCachedValue(instagramProfileCache, normalizedHandle, snapshot);
+  return snapshot;
 }
 
 function normalizeProxyBase(value, req) {
@@ -397,6 +663,24 @@ async function handleApi(req, res, url) {
     const q = url.searchParams.get("q") || "";
     const platformParam = normalizePlatformKey(url.searchParams.get("platform"));
     const limit = Number(url.searchParams.get("limit") || 8);
+    if (!platformParam || platformParam === "instagram") {
+      try {
+        const instagramResults = await fetchInstagramSearchResults(q, limit);
+        if (platformParam === "instagram") {
+          json(res, 200, { results: instagramResults });
+          return;
+        }
+        const mockResults = mockSearch({ platform: platformParam, query: q, limit });
+        const filteredMock = mockResults.filter((item) => item.platform !== "instagram");
+        json(res, 200, { results: [...instagramResults, ...filteredMock] });
+        return;
+      } catch (error) {
+        if (platformParam === "instagram") {
+          handleInstagramError(res, error);
+          return;
+        }
+      }
+    }
     const results = mockSearch({ platform: platformParam, query: q, limit });
     json(res, 200, { results });
     return;
@@ -408,6 +692,20 @@ async function handleApi(req, res, url) {
     if (!platformParam || !handle) {
       json(res, 400, { error: "platform and handle are required" });
       return;
+    }
+    if (platformParam === "instagram") {
+      try {
+        const snapshot = await fetchInstagramSnapshot(handle);
+        json(res, 200, snapshot.profile);
+        return;
+      } catch (error) {
+        if (typeof error?.status === "number" && error.status === 404) {
+          notFound(res, `Aucun profil Instagram pour ${handle}`);
+          return;
+        }
+        handleInstagramError(res, error);
+        return;
+      }
     }
     const profile = buildMockProfile(platformParam, handle);
     if (!profile) {
@@ -430,22 +728,66 @@ async function handleApi(req, res, url) {
 
     if (type === "posts") {
       const limit = Number(url.searchParams.get("limit") || 50);
+      if (normalizedPlatform === "instagram") {
+        try {
+          const snapshot = await fetchInstagramSnapshot(handle);
+          json(res, 200, snapshot.posts.slice(0, limit));
+          return;
+        } catch (error) {
+          handleInstagramError(res, error);
+          return;
+        }
+      }
       json(res, 200, buildMockPosts(normalizedPlatform, handle, limit));
       return;
     }
 
     if (type === "followers") {
       const weeks = Number(url.searchParams.get("weeks") || 12);
+      if (normalizedPlatform === "instagram") {
+        try {
+          const snapshot = await fetchInstagramSnapshot(handle);
+          json(res, 200, snapshot.followersSeries.slice(-weeks));
+          return;
+        } catch (error) {
+          handleInstagramError(res, error);
+          return;
+        }
+      }
       json(res, 200, toFollowersPoints(buildMockFollowers(normalizedPlatform, handle, weeks)));
       return;
     }
 
     if (type === "engagement") {
+      if (normalizedPlatform === "instagram") {
+        try {
+          const snapshot = await fetchInstagramSnapshot(handle);
+          json(res, 200, snapshot.engagementByFormat);
+          return;
+        } catch (error) {
+          handleInstagramError(res, error);
+          return;
+        }
+      }
       json(res, 200, buildMockEngagement(normalizedPlatform, handle));
       return;
     }
 
     if (type === "metrics") {
+      if (normalizedPlatform === "instagram") {
+        try {
+          const snapshot = await fetchInstagramSnapshot(handle);
+          json(res, 200, snapshot.metrics);
+          return;
+        } catch (error) {
+          if (typeof error?.status === "number" && error.status === 404) {
+            notFound(res, `Metrics unavailable for ${handle} on instagram`);
+            return;
+          }
+          handleInstagramError(res, error);
+          return;
+        }
+      }
       const metrics = buildMockMetrics(normalizedPlatform, handle);
       if (!metrics) {
         notFound(res, `Metrics unavailable for ${handle} on ${normalizedPlatform}`);
@@ -534,11 +876,18 @@ const server = createServer(async (req, res) => {
   }
 });
 
+const hasProxyTargets = Boolean(defaultProxyTarget) || platformProxyTargets.size > 0;
+
 server.listen(port, host, () => {
   log(`Server listening on http://${host}:${port}`);
-  if (socialProxyTarget) {
-    log(`Proxying social API requests to ${socialProxyTarget}`);
+  if (hasProxyTargets) {
+    if (defaultProxyTarget) {
+      log(`Proxying social API requests to ${defaultProxyTarget}`);
+    }
+    for (const [platformId, target] of platformProxyTargets) {
+      log(`Proxying ${platformLabels[platformId]} requests to ${target}`);
+    }
   } else {
-    log("Serving mock social API from embedded dataset");
+    log("Serving live Instagram data and mock dataset for other platforms");
   }
 });
