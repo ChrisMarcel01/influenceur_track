@@ -3,8 +3,6 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 
-const mockData = JSON.parse(readFileSync(new URL("../src/data/mockSocialData.json", import.meta.url), "utf8"));
-
 const ENV_FILES = [
   ".env.server.local",
   ".env.server",
@@ -154,60 +152,6 @@ function normalizePlatformKey(platform) {
   return match || null;
 }
 
-function cloneValue(value) {
-  if (value === undefined || value === null) return value;
-  return JSON.parse(JSON.stringify(value));
-}
-
-function normalizeAccounts(accounts) {
-  const normalized = {};
-  if (!accounts) return normalized;
-  for (const [platformKey, account] of Object.entries(accounts)) {
-    const normalizedPlatform = normalizePlatformKey(platformKey);
-    if (!normalizedPlatform || !account) continue;
-    normalized[normalizedPlatform] = cloneValue(account);
-  }
-  return normalized;
-}
-
-function normalizePosts(posts, fallbackPlatform) {
-  if (!Array.isArray(posts)) return undefined;
-  const normalized = posts
-    .map((post) => {
-      if (!post) return null;
-      const platform = normalizePlatformKey(post.platform || fallbackPlatform);
-      if (!platform) return null;
-      const normalizedPost = {
-        ...cloneValue(post),
-        platform,
-      };
-      if (normalizedPost.handle && typeof normalizedPost.handle === "string") {
-        normalizedPost.handle = normalizedPost.handle.startsWith("@")
-          ? normalizedPost.handle
-          : `@${sanitizeHandle(normalizedPost.handle)}`;
-      }
-      return normalizedPost;
-    })
-    .filter((post) => post !== null);
-  return normalized.length ? normalized : undefined;
-}
-
-function normalizePlatforms(platformsInput) {
-  const normalized = {};
-  if (!platformsInput) return normalized;
-  for (const [platformKey, platformData] of Object.entries(platformsInput)) {
-    const normalizedPlatform = normalizePlatformKey(platformKey);
-    if (!normalizedPlatform || !platformData) continue;
-    const clone = cloneValue(platformData) || {};
-    if (Array.isArray(clone.posts)) {
-      const posts = normalizePosts(clone.posts, normalizedPlatform);
-      clone.posts = posts ?? [];
-    }
-    normalized[normalizedPlatform] = clone;
-  }
-  return normalized;
-}
-
 function getInstagramHeaders() {
   const headers = { ...instagramBaseHeaders };
   if (instagramCookieHeader) {
@@ -232,51 +176,6 @@ function setCachedValue(cache, key, value) {
   cache.set(key, { timestamp: Date.now(), value });
 }
 
-const profileIndex = new Map();
-const searchIndex = [];
-
-for (const influencer of mockData.influencers || []) {
-  const record = {
-    id: influencer.id,
-    displayName: influencer.displayName,
-    location: influencer.location,
-    topics: influencer.topics,
-    verified: influencer.verified,
-    profile: {
-      displayName: influencer.displayName,
-      accounts: normalizeAccounts(influencer.accounts),
-      summary: cloneValue(influencer.summary) || { growthSeries: [], engagementByFormat: {} },
-      platforms: normalizePlatforms(influencer.platforms),
-      posts: normalizePosts(influencer.posts),
-    },
-  };
-
-  const accounts = record.profile.accounts || {};
-  for (const [platformId, account] of Object.entries(accounts)) {
-    if (!account?.handle) continue;
-    const normalizedHandle = sanitizeHandle(account.handle);
-    const key = `${platformId}:${normalizedHandle}`;
-    profileIndex.set(key, record);
-
-    const metrics = record.profile.platforms?.[platformId]?.metrics;
-    const followers = metrics?.followers ?? 0;
-    const engagementRate = metrics?.avgEngagement ?? 0;
-
-    searchIndex.push({
-      id: key,
-      platform: platformId,
-      handle: account.handle.startsWith("@") ? account.handle : `@${account.handle}`,
-      displayName: record.displayName,
-      followers,
-      engagementRate: Math.round(Number(engagementRate) * 10) / 10,
-      location: record.location,
-      topics: record.topics,
-      verified: record.verified,
-      normalizedHandle,
-    });
-  }
-}
-
 function json(res, status, payload) {
   const body = JSON.stringify(payload, null, 2);
   res.writeHead(status, {
@@ -295,27 +194,6 @@ function handleInstagramError(res, error) {
   const status = typeof error?.status === "number" ? error.status : 502;
   const message = error?.message || "Instagram request failed";
   json(res, status, { error: message });
-}
-
-function toFollowersPoints(series = []) {
-  return series.map((point) => ({ period: point.period, followers: point.followers }));
-}
-
-function mockSearch({ platform, query, limit }) {
-  const normalizedQuery = (query || "").toLowerCase();
-  return searchIndex
-    .filter((entry) => {
-      if (platform && entry.platform !== platform) return false;
-      if (!normalizedQuery) return true;
-      const nameMatch = entry.displayName?.toLowerCase().includes(normalizedQuery);
-      const handleMatch = entry.normalizedHandle.includes(normalizedQuery.replace(/^@+/, ""));
-      const locationMatch = entry.location?.toLowerCase().includes(normalizedQuery);
-      const topicMatch = entry.topics?.some((topic) => topic.toLowerCase().includes(normalizedQuery));
-      return nameMatch || handleMatch || locationMatch || topicMatch;
-    })
-    .sort((a, b) => b.followers - a.followers)
-    .slice(0, limit)
-    .map(({ normalizedHandle, ...rest }) => rest);
 }
 
 function resolveFacebookToken() {
@@ -620,6 +498,14 @@ function normalizeAdapterError(platform, error) {
   return `Recherche ${platformLabels[platform] || platform} indisponible.`;
 }
 
+function respondConfigurationMissing(res, platform) {
+  const label = platform ? platformLabels[platform] || platform : "Ce réseau";
+  const envHint = platform ? `SOCIAL_PROXY_TARGET_${platform.toUpperCase()}` : "SOCIAL_PROXY_TARGET";
+  json(res, 501, {
+    error: `${label} n'est pas configuré pour cet environnement. Définissez ${envHint} (ou SOCIAL_PROXY_TARGET) afin de relayer vos APIs réelles.`,
+  });
+}
+
 async function executePlatformSearch(platform, query, limit) {
   const adapter = federatedAdapters[platform];
   if (!adapter) {
@@ -691,47 +577,6 @@ async function handleFederatedSearch(req, res, url) {
     results,
     errors: errors.length ? errors : undefined,
   });
-}
-
-function getProfileRecord(platform, handle) {
-  const key = `${platform}:${sanitizeHandle(handle)}`;
-  return profileIndex.get(key);
-}
-
-function buildMockProfile(platform, handle) {
-  const record = getProfileRecord(platform, handle);
-  if (!record) return null;
-  return cloneValue(record.profile);
-}
-
-function buildMockPosts(platform, handle, limit) {
-  const record = getProfileRecord(platform, handle);
-  if (!record) return [];
-  const posts = record.profile.platforms?.[platform]?.posts ?? [];
-  const slice = typeof limit === "number" ? posts.slice(0, limit) : posts;
-  return cloneValue(slice);
-}
-
-function buildMockFollowers(platform, handle, weeks) {
-  const record = getProfileRecord(platform, handle);
-  if (!record) return [];
-  const points = record.profile.platforms?.[platform]?.followersSeries ?? [];
-  const slice = typeof weeks === "number" ? points.slice(-weeks) : points;
-  return cloneValue(slice);
-}
-
-function buildMockEngagement(platform, handle) {
-  const record = getProfileRecord(platform, handle);
-  if (!record) return {};
-  const engagement = record.profile.platforms?.[platform]?.engagementByFormat ?? {};
-  return cloneValue(engagement);
-}
-
-function buildMockMetrics(platform, handle) {
-  const record = getProfileRecord(platform, handle);
-  if (!record) return null;
-  const metrics = record.profile.platforms?.[platform]?.metrics;
-  return metrics ? cloneValue(metrics) : null;
 }
 
 function determineInstagramFormat(node) {
@@ -1047,26 +892,20 @@ async function handleApi(req, res, url) {
     const q = url.searchParams.get("q") || "";
     const platformParam = normalizePlatformKey(url.searchParams.get("platform"));
     const limit = Number(url.searchParams.get("limit") || 8);
-    if (!platformParam || platformParam === "instagram") {
-      try {
-        const instagramResults = await fetchInstagramSearchResults(q, limit);
-        if (platformParam === "instagram") {
-          json(res, 200, { results: instagramResults });
-          return;
-        }
-        const mockResults = mockSearch({ platform: platformParam, query: q, limit });
-        const filteredMock = mockResults.filter((item) => item.platform !== "instagram");
-        json(res, 200, { results: [...instagramResults, ...filteredMock] });
-        return;
-      } catch (error) {
-        if (platformParam === "instagram") {
-          handleInstagramError(res, error);
-          return;
-        }
-      }
+    if (!platformParam) {
+      json(res, 400, { error: "Paramètre 'platform' requis" });
+      return;
     }
-    const results = mockSearch({ platform: platformParam, query: q, limit });
-    json(res, 200, { results });
+    if (platformParam !== "instagram") {
+      respondConfigurationMissing(res, platformParam);
+      return;
+    }
+    try {
+      const instagramResults = await fetchInstagramSearchResults(q, limit);
+      json(res, 200, { results: instagramResults });
+    } catch (error) {
+      handleInstagramError(res, error);
+    }
     return;
   }
 
@@ -1091,12 +930,7 @@ async function handleApi(req, res, url) {
         return;
       }
     }
-    const profile = buildMockProfile(platformParam, handle);
-    if (!profile) {
-      notFound(res, `No mock profile for ${handle} on ${platformParam}`);
-      return;
-    }
-    json(res, 200, profile);
+    respondConfigurationMissing(res, platformParam);
     return;
   }
 
@@ -1122,7 +956,7 @@ async function handleApi(req, res, url) {
           return;
         }
       }
-      json(res, 200, buildMockPosts(normalizedPlatform, handle, limit));
+      respondConfigurationMissing(res, normalizedPlatform);
       return;
     }
 
@@ -1138,7 +972,7 @@ async function handleApi(req, res, url) {
           return;
         }
       }
-      json(res, 200, toFollowersPoints(buildMockFollowers(normalizedPlatform, handle, weeks)));
+      respondConfigurationMissing(res, normalizedPlatform);
       return;
     }
 
@@ -1153,7 +987,7 @@ async function handleApi(req, res, url) {
           return;
         }
       }
-      json(res, 200, buildMockEngagement(normalizedPlatform, handle));
+      respondConfigurationMissing(res, normalizedPlatform);
       return;
     }
 
@@ -1172,12 +1006,7 @@ async function handleApi(req, res, url) {
           return;
         }
       }
-      const metrics = buildMockMetrics(normalizedPlatform, handle);
-      if (!metrics) {
-        notFound(res, `Metrics unavailable for ${handle} on ${normalizedPlatform}`);
-        return;
-      }
-      json(res, 200, metrics);
+      respondConfigurationMissing(res, normalizedPlatform);
       return;
     }
   }
@@ -1277,6 +1106,8 @@ server.listen(port, host, () => {
       log(`Proxying ${platformLabels[platformId]} requests to ${target}`);
     }
   } else {
-    log("Serving live Instagram data and mock dataset for other platforms");
+    log(
+      "Instagram live activé. Définissez SOCIAL_PROXY_TARGET (ou SOCIAL_PROXY_TARGET_<RÉSEAU>) pour relayer les autres plateformes.",
+    );
   }
 });

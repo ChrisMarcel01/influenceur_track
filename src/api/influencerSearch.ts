@@ -1,6 +1,5 @@
 import { Platform, normalizePlatform, platforms as allPlatforms } from "@/lib/platforms";
-import { request, shouldUseMock, toUserFacingError } from "./client";
-import { mockSearchInfluencers } from "./mockSocialData";
+import { request, toUserFacingError } from "./client";
 
 const rawEnv = import.meta.env as Record<string, string | undefined>;
 const SEARCH_ENDPOINT = (rawEnv.VITE_SEARCH_API_URL || "/api/search") as string;
@@ -150,12 +149,6 @@ export async function searchInfluencers({
     const issues = normalizeIssues(response?.errors);
     return { results, issues };
   } catch (error) {
-    if (shouldUseMock(error, requestPath)) {
-      return {
-        results: mockSearchInfluencers({ platforms: selectedPlatforms, query: normalizedQuery, limit: boundedLimit }),
-        issues: [],
-      };
-    }
     throw toUserFacingError(error, "Impossible de récupérer les profils");
   }
 }

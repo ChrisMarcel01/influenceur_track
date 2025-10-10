@@ -1,12 +1,5 @@
 import { Platform, normalizePlatform } from "@/lib/platforms";
-import { request, shouldUseMock, isNotFound, toUserFacingError } from "./client";
-import {
-  mockFetchInfluencerProfile,
-  mockFetchPlatformPosts,
-  mockFetchFollowersHistory,
-  mockFetchEngagementBreakdown,
-  mockFetchPlatformMetrics,
-} from "./mockSocialData";
+import { request, isNotFound, toUserFacingError } from "./client";
 
 export interface PlatformAccount {
   handle: string;
@@ -91,14 +84,6 @@ function normalizeProfileResponse(profile: InfluencerProfileResponse): Influence
   };
 }
 
-function fallbackProfile(platform: Platform, handle: string): InfluencerProfileResponse {
-  const profile = mockFetchInfluencerProfile({ platform, handle });
-  if (profile) return profile;
-  throw new Error(
-    `Aucun profil de démonstration pour ${handle} sur ${platform}. Configurez VITE_SOCIAL_API_URL pour interroger votre backend.`,
-  );
-}
-
 export async function fetchInfluencerProfile({
   platform,
   handle,
@@ -116,9 +101,6 @@ export async function fetchInfluencerProfile({
     const response = await request<InfluencerProfileResponse>(path);
     return normalizeProfileResponse(response);
   } catch (error) {
-    if (shouldUseMock(error, path)) {
-      return normalizeProfileResponse(fallbackProfile(platform, handle));
-    }
     if (isNotFound(error)) {
       throw new Error(`Aucun profil trouvé pour ${handle} sur ${platform}`);
     }
@@ -141,9 +123,6 @@ export async function fetchPlatformPosts({
   try {
     return await request<PostSummary[]>(path);
   } catch (error) {
-    if (shouldUseMock(error, path)) {
-      return mockFetchPlatformPosts({ platform, handle, limit });
-    }
     throw toUserFacingError(error, "Impossible de récupérer les posts");
   }
 }
@@ -163,9 +142,6 @@ export async function fetchFollowersHistory({
   try {
     return await request<FollowersPoint[]>(path);
   } catch (error) {
-    if (shouldUseMock(error, path)) {
-      return mockFetchFollowersHistory({ platform, handle, weeks });
-    }
     throw toUserFacingError(error, "Impossible de récupérer l'historique des abonnés");
   }
 }
@@ -183,9 +159,6 @@ export async function fetchEngagementBreakdown({
   try {
     return await request<Record<string, number>>(path);
   } catch (error) {
-    if (shouldUseMock(error, path)) {
-      return mockFetchEngagementBreakdown({ platform, handle });
-    }
     throw toUserFacingError(error, "Impossible de récupérer la ventilation de l'engagement");
   }
 }
@@ -203,12 +176,6 @@ export async function fetchPlatformMetrics({
   try {
     return await request<PlatformMetrics>(path);
   } catch (error) {
-    if (shouldUseMock(error, path)) {
-      const metrics = mockFetchPlatformMetrics({ platform, handle });
-      if (metrics) {
-        return metrics;
-      }
-    }
     throw toUserFacingError(error, "Impossible de récupérer les métriques");
   }
 }

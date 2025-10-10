@@ -19,23 +19,6 @@ function isRelativeBase(url: string | undefined): boolean {
 
 const IS_RELATIVE_API_BASE = isRelativeBase(API_BASE_URL);
 
-function normalizeBoolean(value: unknown): boolean | undefined {
-  if (typeof value === "boolean") return value;
-  if (typeof value !== "string") return undefined;
-  const normalized = value.trim().toLowerCase();
-  if (["1", "true", "yes", "on"].includes(normalized)) return true;
-  if (["0", "false", "no", "off"].includes(normalized)) return false;
-  return undefined;
-}
-
-const ALLOW_MOCK_FALLBACK = (() => {
-  const explicit = normalizeBoolean(import.meta.env.VITE_ALLOW_MOCK_FALLBACK);
-  if (explicit !== undefined) {
-    return explicit;
-  }
-  return false;
-})();
-
 function extractPlatformFromPath(path: string): Platform | null {
   const platformFromSegment = path.match(/^\/platforms\/([^/?#]+)/);
   if (platformFromSegment) {
@@ -153,42 +136,14 @@ export async function request<T>(
   }
 }
 
-export function shouldUseMock(error: unknown, path?: string): boolean {
-  if (!ALLOW_MOCK_FALLBACK) return false;
-  const baseUrl =
-    error instanceof SocialApiError && typeof error.baseUrl === "string"
-      ? error.baseUrl
-      : path
-        ? resolveBaseUrl(path)
-        : API_BASE_URL;
-  const isRelative = isRelativeBase(baseUrl);
-  if (error instanceof SocialApiError) {
-    if (error.status === undefined) return true;
-    if (error.status >= 500) return true;
-    if (error.status === 503) return true;
-    if (error.status === 404 && isRelative) return true;
-  }
-  return false;
-}
-
 export function isNotFound(error: unknown): boolean {
   return error instanceof SocialApiError && error.status === 404;
 }
 
 export function toUserFacingError(error: unknown, fallbackMessage: string): Error {
   if (error instanceof SocialApiError) {
-    if (ALLOW_MOCK_FALLBACK && shouldUseMock(error)) {
-      return new Error(
-        `${fallbackMessage} (service indisponible). Configurez VITE_SOCIAL_API_URL pour interroger votre backend.`,
-      );
-    }
     const baseMessage = error.message || fallbackMessage;
-    if (!ALLOW_MOCK_FALLBACK) {
-      return new Error(
-        `${baseMessage}. Configurez VITE_SOCIAL_API_URL vers votre API live ou définissez VITE_ALLOW_MOCK_FALLBACK=true pour réactiver les données de démonstration.`,
-      );
-    }
-    return new Error(baseMessage);
+    return new Error(`${baseMessage}. Vérifiez la configuration de vos API (VITE_SOCIAL_API_URL et cibles par réseau).`);
   }
   if (error instanceof Error) {
     return error;
