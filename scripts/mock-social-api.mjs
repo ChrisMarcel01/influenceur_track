@@ -1,6 +1,11 @@
 import { createServer } from "node:http";
-import { URL } from "node:url";
-import data from "../src/data/mockSocialData.json" assert { type: "json" };
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { URL, fileURLToPath } from "node:url";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const dataPath = resolve(here, "../src/data/mockSocialData.json");
+const data = JSON.parse(readFileSync(dataPath, "utf8"));
 
 const port = Number(process.env.PORT || 3030);
 const host = process.env.HOST || "0.0.0.0";
@@ -18,6 +23,8 @@ const platformLabels = {
 };
 
 const platformIds = Object.keys(platformLabels);
+
+const DEFAULT_FEDERATED_PLATFORMS = ["youtube", "x", "facebook"];
 
 function normalizePlatformKey(platform) {
   if (!platform) return null;
@@ -74,6 +81,55 @@ function normalizePlatforms(platformsInput) {
     normalized[normalizedPlatform] = clone;
   }
   return normalized;
+}
+
+function buildProfileUrl(platform, handle) {
+  const sanitized = sanitizeHandle(handle);
+  if (!sanitized) return null;
+  switch (platform) {
+    case "instagram":
+      return `https://www.instagram.com/${sanitized}/`;
+    case "tiktok":
+      return `https://www.tiktok.com/@${sanitized}`;
+    case "facebook":
+      return `https://www.facebook.com/${sanitized}`;
+    case "x":
+      return `https://x.com/${sanitized}`;
+    case "youtube":
+      return `https://www.youtube.com/@${sanitized}`;
+    default:
+      return null;
+  }
+}
+
+function normalizePlatformsList(input) {
+  if (!input) return [];
+  return input
+    .split(/[,\s]+/)
+    .map((value) => normalizePlatformKey(value))
+    .filter((value) => value !== null);
+}
+
+function matchesSearchEntry(entry, normalizedQuery) {
+  if (!normalizedQuery) return true;
+  const nameMatch = entry.displayName?.toLowerCase().includes(normalizedQuery);
+  const handleMatch = entry.normalizedHandle.includes(normalizedQuery.replace(/^@+/, ""));
+  const locationMatch = entry.location?.toLowerCase().includes(normalizedQuery);
+  const topicMatch = entry.topics?.some((topic) => topic.toLowerCase().includes(normalizedQuery));
+  return Boolean(nameMatch || handleMatch || locationMatch || topicMatch);
+}
+
+function toFederatedResult(entry) {
+  return {
+    platform: entry.platform,
+    id: entry.id,
+    name: entry.displayName,
+    handle: entry.handle,
+    avatar: null,
+    profileUrl: buildProfileUrl(entry.platform, entry.handle),
+    followers: entry.followers ?? null,
+    verified: entry.verified ?? undefined,
+  };
 }
 
 function normalizeInfluencer(influencer) {
@@ -148,6 +204,37 @@ const server = createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || `localhost:${port}`}`);
   const pathname = url.pathname;
 
+  if (req.method === "GET" && pathname === "/api/search") {
+    const originalQuery = url.searchParams.get("q") || "";
+    const normalizedQuery = originalQuery.toLowerCase();
+    const limitParam = Number(url.searchParams.get("limit") || 8);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(Math.round(limitParam), 25) : 8;
+    const requestedPlatforms = normalizePlatformsList(url.searchParams.get("platforms"));
+    const normalizedPlatforms = requestedPlatforms.length ? requestedPlatforms : DEFAULT_FEDERATED_PLATFORMS;
+    const uniquePlatforms = Array.from(new Set(normalizedPlatforms.filter((platform) => platformIds.includes(platform))));
+    if (!uniquePlatforms.length) {
+      uniquePlatforms.push(...DEFAULT_FEDERATED_PLATFORMS);
+    }
+
+    const results = [];
+    for (const platform of uniquePlatforms) {
+      const platformResults = searchIndex
+        .filter((entry) => entry.platform === platform && matchesSearchEntry(entry, normalizedQuery))
+        .slice(0, limit)
+        .map(toFederatedResult);
+      results.push(...platformResults);
+    }
+
+    json(res, 200, {
+      q: originalQuery,
+      platforms: uniquePlatforms,
+      limit,
+      results,
+      errors: [],
+    });
+    return;
+  }
+
   if (req.method === "GET" && pathname === "/search/influencers") {
     const q = (url.searchParams.get("q") || "").toLowerCase();
     const platformParam = normalizePlatformKey(url.searchParams.get("platform"));
@@ -156,12 +243,7 @@ const server = createServer((req, res) => {
     const results = searchIndex
       .filter((entry) => {
         if (platformParam && entry.platform !== platformParam) return false;
-        if (!q) return true;
-        const nameMatch = entry.displayName.toLowerCase().includes(q);
-        const handleMatch = entry.normalizedHandle.includes(q.replace(/^@+/, ""));
-        const locationMatch = entry.location?.toLowerCase().includes(q);
-        const topicMatch = entry.topics?.some((topic) => topic.toLowerCase().includes(q));
-        return nameMatch || handleMatch || locationMatch || topicMatch;
+        return matchesSearchEntry(entry, q);
       })
       .sort((a, b) => b.followers - a.followers)
       .slice(0, limit)

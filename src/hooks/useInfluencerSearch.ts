@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Platform } from "@/lib/platforms";
-import { InfluencerSearchResult, searchInfluencers } from "@/api/influencerSearch";
+import { InfluencerSearchResult, InfluencerSearchIssue, searchInfluencers } from "@/api/influencerSearch";
 
 interface UseInfluencerSearchParams {
-  platform?: Platform;
+  platforms: Platform[];
   query: string;
   minLength?: number;
   limit?: number;
@@ -12,19 +12,21 @@ interface UseInfluencerSearchParams {
 
 interface UseInfluencerSearchResult {
   results: InfluencerSearchResult[];
+  issues: InfluencerSearchIssue[];
   isLoading: boolean;
   error: string | null;
   hasQuery: boolean;
 }
 
 export function useInfluencerSearch({
-  platform,
+  platforms,
   query,
   minLength = 2,
   limit = 8,
   debounceMs = 250,
 }: UseInfluencerSearchParams): UseInfluencerSearchResult {
   const [results, setResults] = useState<InfluencerSearchResult[]>([]);
+  const [issues, setIssues] = useState<InfluencerSearchIssue[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +36,7 @@ export function useInfluencerSearch({
   useEffect(() => {
     if (!hasQuery) {
       setResults([]);
+      setIssues([]);
       setIsLoading(false);
       setError(null);
       return;
@@ -42,15 +45,17 @@ export function useInfluencerSearch({
     let cancelled = false;
     setIsLoading(true);
     const timeout = setTimeout(() => {
-      searchInfluencers({ platform, query: normalizedQuery, limit })
-        .then((items) => {
+      searchInfluencers({ platforms, query: normalizedQuery, limit })
+        .then(({ results: items, issues: backendIssues }) => {
           if (cancelled) return;
           setResults(items);
+          setIssues(backendIssues);
           setError(null);
         })
         .catch((err: Error) => {
           if (cancelled) return;
           setResults([]);
+          setIssues([]);
           setError(err.message || "Unable to fetch influencers");
         })
         .finally(() => {
@@ -63,7 +68,7 @@ export function useInfluencerSearch({
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [platform, normalizedQuery, limit, debounceMs, hasQuery]);
+  }, [platforms, normalizedQuery, limit, debounceMs, hasQuery]);
 
-  return { results, isLoading, error, hasQuery };
+  return { results, issues, isLoading, error, hasQuery };
 }
