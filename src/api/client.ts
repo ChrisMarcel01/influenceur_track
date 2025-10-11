@@ -1,20 +1,65 @@
-export const API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_URL || "/api/social") as string;
+import { type Platform, normalizePlatform, platforms } from "@/lib/platforms";
 
-const ALLOW_MOCK_FALLBACK = (() => {
-  const explicit = import.meta.env.VITE_ALLOW_MOCK_FALLBACK;
-  if (explicit !== undefined) {
-    return explicit === "true";
+const rawEnv = import.meta.env as Record<string, string | undefined>;
+
+export const API_BASE_URL = (rawEnv.VITE_SOCIAL_API_URL || "/api/social") as string;
+
+const PLATFORM_BASE_URLS = platforms.reduce((acc, platform) => {
+  const envKey = `VITE_SOCIAL_API_URL_${platform.toUpperCase()}`;
+  const value = rawEnv[envKey];
+  if (typeof value === "string" && value.trim()) {
+    acc.set(platform, value.trim());
   }
-  // When no backend URL is configured we automatically fall back to the mock dataset
-  // to keep the experience usable out of the box.
-  const hasCustomApi = Boolean(import.meta.env.VITE_SOCIAL_API_URL);
-  return !hasCustomApi;
-})();
+  return acc;
+}, new Map<Platform, string>());
+
+function isRelativeBase(url: string | undefined): boolean {
+  return typeof url === "string" && url.startsWith("/");
+}
+
+const IS_RELATIVE_API_BASE = isRelativeBase(API_BASE_URL);
+
+function extractPlatformFromPath(path: string): Platform | null {
+  const platformFromSegment = path.match(/^\/platforms\/([^/?#]+)/);
+  if (platformFromSegment) {
+    return normalizePlatform(platformFromSegment[1]);
+  }
+
+  const queryIndex = path.indexOf("?");
+  if (queryIndex === -1) {
+    return null;
+  }
+
+  const params = new URLSearchParams(path.slice(queryIndex + 1));
+  const platformParam = params.get("platform");
+  return normalizePlatform(platformParam);
+}
+
+function resolveBaseUrl(path: string): string {
+  const platform = extractPlatformFromPath(path);
+  if (platform) {
+    const platformBase = PLATFORM_BASE_URLS.get(platform);
+    if (platformBase) {
+      return platformBase;
+    }
+  }
+  return API_BASE_URL;
+}
+
+function joinBaseWithPath(baseUrl: string, path: string): string {
+  if (!baseUrl) return path;
+  if (!path) return baseUrl;
+  if (baseUrl.endsWith("/") && path.startsWith("/")) {
+    return `${baseUrl.slice(0, -1)}${path}`;
+  }
+  return `${baseUrl}${path}`;
+}
 
 export class SocialApiError extends Error {
   status?: number;
+  baseUrl?: string;
 
-  constructor(message: string, options?: { status?: number; cause?: unknown }) {
+  constructor(message: string, options?: { status?: number; cause?: unknown; baseUrl?: string }) {
     super(message);
     this.name = "SocialApiError";
     if (options?.status !== undefined) {
@@ -24,11 +69,24 @@ export class SocialApiError extends Error {
       // @ts-expect-error cause is available in modern runtimes
       this.cause = options.cause;
     }
+    if (options?.baseUrl) {
+      this.baseUrl = options.baseUrl;
+    }
   }
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+export async function request<T>(
+  path: string,
+  init?: RequestInit,
+  options?: {
+    baseUrl?: string | null;
+  },
+): Promise<T> {
+  const baseUrl =
+    options && Object.prototype.hasOwnProperty.call(options, "baseUrl")
+      ? options.baseUrl ?? ""
+      : resolveBaseUrl(path);
+  const url = joinBaseWithPath(baseUrl, path);
 
   try {
     const response = await fetch(url, {
@@ -39,30 +97,43 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
       },
     });
 
+    const contentType = response.headers.get("content-type") || "";
+    const bodyText = await response.text().catch(() => "");
+
     if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      const message = text || `Request failed with status ${response.status}`;
-      throw new SocialApiError(message, { status: response.status });
+      const message = bodyText || `Request failed with status ${response.status}`;
+      throw new SocialApiError(message, { status: response.status, baseUrl });
     }
 
-    return (await response.json()) as T;
+    const trimmedBody = bodyText.trim();
+    const expectsJson = /json/i.test(contentType);
+    if (!expectsJson && trimmedBody) {
+      const snippet = trimmedBody.replace(/\s+/g, " ").slice(0, 160);
+      const message =
+        contentType && !expectsJson
+          ? `Réponse non JSON (${contentType}) : ${snippet}`
+          : `Réponse non JSON reçue : ${snippet}`;
+      throw new SocialApiError(message, { status: response.status, baseUrl });
+    }
+
+    if (!trimmedBody) {
+      throw new SocialApiError("Réponse vide reçue depuis l'API", { status: response.status, baseUrl });
+    }
+
+    try {
+      return JSON.parse(trimmedBody) as T;
+    } catch (parseError) {
+      const snippet = trimmedBody.replace(/\s+/g, " ").slice(0, 160);
+      const message = `Réponse JSON invalide : ${snippet || "(vide)"}`;
+      throw new SocialApiError(message, { status: response.status, cause: parseError, baseUrl });
+    }
   } catch (error) {
     if (error instanceof SocialApiError) {
       throw error;
     }
     const message = error instanceof Error ? error.message : "Failed to reach social API";
-    throw new SocialApiError(message, { cause: error });
+    throw new SocialApiError(message, { cause: error, baseUrl });
   }
-}
-
-export function shouldUseMock(error: unknown): boolean {
-  if (!ALLOW_MOCK_FALLBACK) return false;
-  if (error instanceof SocialApiError) {
-    if (error.status === undefined) return true;
-    if (error.status >= 500) return true;
-    if (error.status === 503) return true;
-  }
-  return false;
 }
 
 export function isNotFound(error: unknown): boolean {
@@ -71,18 +142,8 @@ export function isNotFound(error: unknown): boolean {
 
 export function toUserFacingError(error: unknown, fallbackMessage: string): Error {
   if (error instanceof SocialApiError) {
-    if (ALLOW_MOCK_FALLBACK && shouldUseMock(error)) {
-      return new Error(
-        `${fallbackMessage} (service indisponible). Configurez VITE_SOCIAL_API_URL pour interroger votre backend.`,
-      );
-    }
     const baseMessage = error.message || fallbackMessage;
-    if (!ALLOW_MOCK_FALLBACK) {
-      return new Error(
-        `${baseMessage}. Configurez VITE_SOCIAL_API_URL vers votre API live ou définissez VITE_ALLOW_MOCK_FALLBACK=true pour réactiver les données de démonstration.`,
-      );
-    }
-    return new Error(baseMessage);
+    return new Error(`${baseMessage}. Vérifiez la configuration de vos API (VITE_SOCIAL_API_URL et cibles par réseau).`);
   }
   if (error instanceof Error) {
     return error;

@@ -1,154 +1,93 @@
-# InfluenceTrack – interface de suivi des influenceurs
+# Lancer l'application en environnement réel
 
-Cette application React/TypeScript permet de rechercher des influenceurs, de lier leurs comptes sociaux et de visualiser leurs métriques clés.
+Ce guide vous accompagne pas à pas pour exécuter l'application avec vos propres APIs et des données d'influenceurs réelles. Chaque étape inclut le résultat attendu afin que vous puissiez valider immédiatement votre configuration.
 
-## Prérequis
-- Node.js 18+ (recommandé : 20)
-- npm 9+
+---
 
-## Installation
-```bash
-npm install
-```
+## 1. Pré-requis
+1. Installez [Node.js](https://nodejs.org/) en version **18** ou supérieure (la LTS 20 est recommandée).
+2. Ouvrez un terminal et vérifiez l'installation :
+   ```bash
+   node -v
+   npm -v
+   ```
+   ✅ **Résultat attendu :** deux numéros de version s'affichent (ex. `v20.x.x` et `10.x.x`).
 
-## Lancer l'application
-### 1. Avec l'API "live" incluse (connexion directe aux réseaux)
-Un serveur Node (`scripts/social-live-api.mjs`) interroge les API publiques/officielles de chaque plateforme.
+---
 
-```bash
-# variables minimales à fournir (voir tableau ci-dessous)
-export INSTAGRAM_SESSION_ID="..."
-export FACEBOOK_ACCESS_TOKEN="..."
-export YOUTUBE_API_KEY="..."
-export TWITTER_BEARER_TOKEN="..."   # optionnel mais recommandé
+## 2. Installer les dépendances
+1. Placez-vous à la racine du projet.
+2. Installez les bibliothèques JavaScript :
+   ```bash
+   npm install
+   ```
+   ✅ **Résultat attendu :** la commande se termine sans erreur avec un message du type « added XX packages ».
 
-npm run live:api
-```
+---
 
-Par défaut le serveur écoute sur `http://0.0.0.0:3031`. Lancez ensuite l'interface :
+## 3. Configurer l'environnement
+1. Copiez le modèle d'environnement :
+   ```bash
+   cp .env.example .env.local
+   ```
+   (PowerShell : `Copy-Item .env.example .env.local`)
+   ✅ **Résultat attendu :** un fichier `.env.local` apparaît à la racine.
+2. Ouvrez `.env.local` et renseignez les variables suivantes :
 
-```bash
-# macOS / Linux
-VITE_SOCIAL_API_URL=http://localhost:3031 npm run dev
+   | Variable | Rôle | Exemple |
+   | --- | --- | --- |
+   | `VITE_SOCIAL_API_URL` | URL de votre backend fédéré (`/api/social`) si vous en avez un. Laissez vide si vous utilisez des URLs par réseau. | `https://api.mondomaine.com/social` |
+   | `VITE_SOCIAL_API_URL_<RÉSEAU>` | (Optionnel) URL dédiée pour un réseau (`INSTAGRAM`, `FACEBOOK`, `X`, `TIKTOK`, `YOUTUBE`). Utilisée directement par le frontend. | `https://api.mondomaine.com/instagram` |
+   | `SOCIAL_PROXY_TARGET` | (Optionnel) URL principale que le serveur Node utilisera en production (`npm run start`). | `https://api.mondomaine.com/social` |
+   | `SOCIAL_PROXY_TARGET_<RÉSEAU>` | (Optionnel) Proxy par réseau pour le serveur Node (`INSTAGRAM`, `FACEBOOK`, `X`, `TIKTOK`, `YOUTUBE`). | `https://api.mondomaine.com/facebook` |
+   | `YOUTUBE_API_KEY` | Clé officielle YouTube Data API v3 (obligatoire pour les recherches YouTube). | `AIza...` |
+   | `X_BEARER_TOKEN` | Jeton OAuth 2.0 pour l'API X/Twitter v1.1 `users/search`. | `AAAAAAAA...` |
+   | `FB_APP_ID` / `FB_APP_SECRET` **ou** `FACEBOOK_ACCESS_TOKEN` | Identifiants nécessaires à la recherche de pages Facebook. | `123456789` / `xxxxxxxx` |
+   | `INSTAGRAM_SESSION_ID` (ou `INSTAGRAM_COOKIE`) | Cookie de session Instagram valide pour interroger les profils publics. | `sessionid=...` |
+   | `INSTAGRAM_USER_AGENT` (optionnel) | User-Agent personnalisé pour Instagram. | `Mozilla/5.0 ...` |
 
-# Windows (PowerShell)
-$env:VITE_SOCIAL_API_URL="http://localhost:3031"; npm run dev
+   ✅ **Résultat attendu :** toutes les variables requises pour vos réseaux sont renseignées sans espaces superflus.
 
-# Windows (Invite de commandes)
-set "VITE_SOCIAL_API_URL=http://localhost:3031" && npm run dev
-```
+3. Sauvegardez le fichier avant de poursuivre.
 
-| Réseau     | Variables requises | Remarques |
-|------------|--------------------|-----------|
-| Instagram  | `INSTAGRAM_SESSION_ID` | Session Instagram valide (cookie `sessionid`) pour accéder à l'API web. |
-| TikTok     | *(aucune)*         | Le connecteur utilise les endpoints web publics. |
-| Facebook   | `FACEBOOK_ACCESS_TOKEN` | Jeton généré via le Graph API (Page ou App). |
-| X (Twitter)| `TWITTER_BEARER_TOKEN` *(optionnel)* | Permet de récupérer les tweets récents. Sans jeton seules les méta-données publiques sont disponibles. |
-| YouTube    | `YOUTUBE_API_KEY`  | Clé API YouTube Data v3. |
+---
 
-Vous pouvez compléter ces variables dans un fichier `.env.local` ou via votre outil d'orchestration.
+## 4. Lancer l'application en mode développement
+1. Vérifiez que vos APIs live répondent (ex. `curl https://api.mondomaine.com/social/health`).
+2. Démarrez Vite :
+   ```bash
+   npm run dev
+   ```
+3. Ouvrez le navigateur à l'adresse affichée (généralement `http://localhost:5173`).
+   ✅ **Résultat attendu :** l'interface se charge et chaque recherche déclenche des appels vers vos endpoints live. En cas d'erreur, le message indique quel réseau doit être reconfiguré.
 
-### 2. Avec l'API mock
-Si vous ne disposez pas encore des identifiants nécessaires, le serveur de démonstration reste disponible :
+---
 
-```bash
-npm run mock:api
-```
+## 5. Tester la version production locale
+1. Construisez l'application :
+   ```bash
+   npm run build
+   ```
+2. Lancez le serveur Node embarqué :
+   ```bash
+   npm run start
+   ```
+   Le serveur lit `.env.local`, sert le dossier `dist` et relaie `/api/social` vers les cibles configurées.
+3. Accédez à `http://localhost:4173` dans votre navigateur.
+   ✅ **Résultat attendu :** l'application rendue est identique à la version de développement, avec des données réelles pour chaque réseau correctement configuré.
 
-Il écoute sur `http://0.0.0.0:3030`. Démarrez l'interface dans un autre terminal :
+---
 
-```bash
-# macOS / Linux
-VITE_SOCIAL_API_URL=http://localhost:3030 npm run dev
+## 6. Vérifications rapides
+- **Recherche fédérée :** tapez au moins deux lettres et activez les filtres plateformes. Les résultats proviennent de YouTube, X ou Facebook selon les clés fournies.
+- **Profils Instagram :** saisissez un `@handle` exact pour afficher la fiche détaillée et les métriques en direct.
+- **Autres réseaux :** si un message « non configuré » apparaît, complétez la variable `SOCIAL_PROXY_TARGET_<RÉSEAU>` ou mettez en place votre propre service.
 
-# Windows (PowerShell)
-$env:VITE_SOCIAL_API_URL="http://localhost:3030"; npm run dev
+---
 
-# Windows (Invite de commandes)
-set "VITE_SOCIAL_API_URL=http://localhost:3030" && npm run dev
-```
+## 7. Préparer le déploiement
+- Reproduisez les mêmes variables d'environnement sur votre plateforme d'hébergement (Vercel, Render, serveur maison, etc.).
+- Exécutez `npm run build` pendant le déploiement puis lancez `npm run start` pour servir `dist` et proxyfier vos APIs.
+- Vérifiez les logs du serveur : chaque cible configurée est listée. Sans proxy, seules les fonctionnalités Instagram directes restent actives.
 
-### 3. Avec votre propre backend
-Exposez des endpoints compatibles avec ceux utilisés dans `src/api` puis définissez l'URL :
-
-```bash
-# macOS / Linux
-VITE_SOCIAL_API_URL=https://mon-backend.exemple.com npm run dev
-
-# Windows (PowerShell)
-$env:VITE_SOCIAL_API_URL="https://mon-backend.exemple.com"; npm run dev
-
-# Windows (Invite de commandes)
-set "VITE_SOCIAL_API_URL=https://mon-backend.exemple.com" && npm run dev
-```
-
-## Scripts utiles
-- `npm run dev` : démarre Vite (penser à définir `VITE_SOCIAL_API_URL` si besoin)
-- `npm run live:api` : démarre le proxy qui interroge les réseaux sociaux en direct
-- `npm run mock:api` : lance l'API mock basée sur `src/data/mockSocialData.json`
-- `npm run build` : compile l'application pour la production
-- `npm run preview` : prévisualise le build de production
-- `npm run lint` : exécute ESLint
-
-## Fallback mock
-Si aucune URL d'API (`VITE_SOCIAL_API_URL`) n'est configurée, l'application utilise automatiquement le dataset embarqué pour rester exploitable immédiatement. Une fois un backend live branché, vous pouvez désactiver ce fallback en définissant explicitement `VITE_ALLOW_MOCK_FALLBACK=false`.
-
-Pour forcer le fallback mock tout en conservant une URL distante (par exemple en environnement de recette), définissez :
-
-```bash
-VITE_ALLOW_MOCK_FALLBACK=true
-```
-
-Les données de démonstration sont stockées dans `src/data/mockSocialData.json`.
-
-## Tester en environnement réel
-
-Pour valider l'application avec des données de production, suivez les étapes ci-dessous :
-
-1. **Préparer les accès** – Collectez les identifiants listés dans le tableau ci-dessus et exportez-les dans votre shell (ou votre `.env.local`). Sans ces valeurs, les plateformes refuseront la plupart des appels live.
-2. **Lancer le proxy social** – Exécutez `npm run live:api` pour démarrer `scripts/social-live-api.mjs`. Vérifiez dans la console que chaque connecteur démarre sans erreur 4xx/5xx.
-3. **Démarrer l'interface** – Dans un second terminal, définissez `VITE_SOCIAL_API_URL` (voir exemples ci-dessus) puis lancez `npm run dev` afin de pointer l'UI vers le proxy live. Naviguez vers `http://localhost:5173` (par défaut) et recherchez un influenceur réel pour confirmer la récupération des métriques.
-4. **Analyser les journaux** – Surveillez le terminal du proxy : vous y verrez les requêtes effectuées vers les réseaux sociaux ainsi que les éventuelles erreurs de permission ou de quota. Corrigez les identifiants si nécessaire.
-5. **Désactiver le fallback mock** – Pour vous assurer que seules les données réelles sont utilisées, définissez `VITE_ALLOW_MOCK_FALLBACK=false` avant de relancer `npm run dev`.
-
-Ces actions reproduisent les conditions de production tout en restant sur votre machine de développement. Une fois validées, vous pouvez déployer le proxy et l'interface sur votre infrastructure cible.
-
-## Déploiement
-
-### Publier sur Vercel pas à pas
-
-1. **Préparer le projet**  
-   Vérifiez que le dépôt Git contient bien le code à déployer et que le fichier `package.json` définit les scripts standards (`npm run build`, `npm run dev`, etc.). Commitez vos derniers changements puis poussez-les vers le dépôt distant (GitHub, GitLab, Bitbucket ou Vercel Git).
-2. **Créer/relier le projet Vercel**  
-   - _Depuis l'interface web_ : rendez-vous sur [vercel.com](https://vercel.com), cliquez sur **New Project** puis importez votre dépôt.  
-   - _Via le CLI_ : installez l'outil avec `npm i -g vercel`, exécutez `vercel login` puis `vercel` à la racine du projet pour lier le répertoire courant à un projet Vercel.
-3. **Configurer la construction**  
-   Vercel détecte automatiquement Vite. Vérifiez néanmoins dans **Settings → Build & Development → Build Command** que la commande est `npm run build` et que le dossier de sortie est `dist`. Si vous utilisez le CLI, répondez `npm run build` à la question *"What is your Build Command?"* et `dist` pour *"Output Directory"* lors du premier déploiement.
-4. **Définir les variables d'environnement**  
-   Dans **Settings → Environment Variables**, ajoutez au minimum `VITE_SOCIAL_API_URL` (URL de votre backend/proxy social). Ajoutez également `VITE_ALLOW_MOCK_FALLBACK=false` pour empêcher le repli sur les données mockées. Renseignez les valeurs dans les environnements **Production**, **Preview** et **Development** selon vos besoins.
-5. **Lancer le déploiement**  
-   - _Via Git_ : chaque `git push` sur la branche principale déclenche un déploiement de production ; les autres branches génèrent des aperçus (Preview).  
-   - _Via CLI_ : exécutez `vercel --prod` pour déployer la branche courante en production, ou simplement `vercel` pour créer un aperçu.
-6. **Vérifier le résultat**  
-   Une fois le build terminé, ouvrez l'URL fournie par Vercel. Testez les flux critiques (recherche d'influenceurs, affichage des métriques) et contrôlez la console navigateur pour détecter d'éventuelles erreurs CORS ou d'URL.
-
-> 💡 Le proxy social (`npm run live:api`) n'est pas déployé automatiquement sur Vercel. Hébergez-le sur une plateforme compatible Node (Vercel functions, Fly.io, Railway, etc.) ou sur votre infrastructure. Pointez ensuite `VITE_SOCIAL_API_URL` vers cette instance publique.
-
-### Autres plateformes
-
-1. Construire le bundle : `npm run build`
-2. Déployer le dossier `dist` sur la plateforme de votre choix (Netlify, Cloudflare Pages, etc.)
-3. Configurer la variable d'environnement `VITE_SOCIAL_API_URL` vers votre API publique si vous souhaitez utiliser des données temps réel.
-
-## Prochaines étapes suggérées
-
-Pour aller au-delà de l'intégration de base, voici l'ordre recommandé :
-
-1. **Vérifier les identifiants live** – Testez chaque connecteur via `npm run live:api` en ciblant un handle réel par plateforme pour confirmer que vos tokens/clé API sont valides (erreurs 4xx sont souvent liées aux permissions ou à des scopes manquants).
-2. **Activer la persistance** – Une fois les données récupérées correctement, ajoutez un stockage (base de données ou cache) côté backend pour historiser les métriques et éviter de solliciter inutilement les APIs sociales à chaque chargement.
-3. **Brancher l'interface sur votre backend** – Déployez votre passerelle sociale, exposez les mêmes routes que celles attendues par `src/api` puis pointez `VITE_SOCIAL_API_URL` vers cette URL.
-4. **Surveiller et journaliser** – Ajoutez de la télémétrie (logs structurés, traces) dans `scripts/social-live-api.mjs` ou votre implémentation pour faciliter le diagnostic en production.
-5. **Durcir la sécurité** – Lorsque vous hébergez le proxy, sécurisez l'accès (authentification, quotas) et stockez les secrets dans un coffre-fort ou un service de gestion de secrets.
-
-Ces étapes garantissent une transition progressive d'une maquette alimentée par des données mockées vers une exploitation fiable des données sociales réelles.
-
+En suivant ces étapes, l'application est prête pour des tests en environnement réel, connectée exclusivement à vos propres sources de données.

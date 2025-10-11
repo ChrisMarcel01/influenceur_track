@@ -1,12 +1,5 @@
 import { Platform, normalizePlatform } from "@/lib/platforms";
-import { request, shouldUseMock, isNotFound, toUserFacingError } from "./client";
-import {
-  mockFetchInfluencerProfile,
-  mockFetchPlatformPosts,
-  mockFetchFollowersHistory,
-  mockFetchEngagementBreakdown,
-  mockFetchPlatformMetrics,
-} from "./mockSocialData";
+import { request, isNotFound, toUserFacingError } from "./client";
 
 export interface PlatformAccount {
   handle: string;
@@ -91,14 +84,6 @@ function normalizeProfileResponse(profile: InfluencerProfileResponse): Influence
   };
 }
 
-function fallbackProfile(platform: Platform, handle: string): InfluencerProfileResponse {
-  const profile = mockFetchInfluencerProfile({ platform, handle });
-  if (profile) return profile;
-  throw new Error(
-    `Aucun profil de démonstration pour ${handle} sur ${platform}. Configurez VITE_SOCIAL_API_URL pour interroger votre backend.`,
-  );
-}
-
 export async function fetchInfluencerProfile({
   platform,
   handle,
@@ -110,14 +95,12 @@ export async function fetchInfluencerProfile({
     platform,
     handle,
   });
+  const path = `/influencers/profile?${params.toString()}`;
 
   try {
-    const response = await request<InfluencerProfileResponse>(`/influencers/profile?${params.toString()}`);
+    const response = await request<InfluencerProfileResponse>(path);
     return normalizeProfileResponse(response);
   } catch (error) {
-    if (shouldUseMock(error)) {
-      return normalizeProfileResponse(fallbackProfile(platform, handle));
-    }
     if (isNotFound(error)) {
       throw new Error(`Aucun profil trouvé pour ${handle} sur ${platform}`);
     }
@@ -135,13 +118,11 @@ export async function fetchPlatformPosts({
   limit?: number;
 }): Promise<PostSummary[]> {
   const params = new URLSearchParams({ handle, limit: String(limit) });
+  const path = `/platforms/${platform.toLowerCase()}/posts?${params.toString()}`;
 
   try {
-    return await request<PostSummary[]>(`/platforms/${platform.toLowerCase()}/posts?${params.toString()}`);
+    return await request<PostSummary[]>(path);
   } catch (error) {
-    if (shouldUseMock(error)) {
-      return mockFetchPlatformPosts({ platform, handle, limit });
-    }
     throw toUserFacingError(error, "Impossible de récupérer les posts");
   }
 }
@@ -156,13 +137,11 @@ export async function fetchFollowersHistory({
   weeks?: number;
 }): Promise<FollowersPoint[]> {
   const params = new URLSearchParams({ handle, weeks: String(weeks) });
+  const path = `/platforms/${platform.toLowerCase()}/followers?${params.toString()}`;
 
   try {
-    return await request<FollowersPoint[]>(`/platforms/${platform.toLowerCase()}/followers?${params.toString()}`);
+    return await request<FollowersPoint[]>(path);
   } catch (error) {
-    if (shouldUseMock(error)) {
-      return mockFetchFollowersHistory({ platform, handle, weeks });
-    }
     throw toUserFacingError(error, "Impossible de récupérer l'historique des abonnés");
   }
 }
@@ -175,13 +154,11 @@ export async function fetchEngagementBreakdown({
   handle: string;
 }): Promise<Record<string, number>> {
   const params = new URLSearchParams({ handle });
+  const path = `/platforms/${platform.toLowerCase()}/engagement?${params.toString()}`;
 
   try {
-    return await request<Record<string, number>>(`/platforms/${platform.toLowerCase()}/engagement?${params.toString()}`);
+    return await request<Record<string, number>>(path);
   } catch (error) {
-    if (shouldUseMock(error)) {
-      return mockFetchEngagementBreakdown({ platform, handle });
-    }
     throw toUserFacingError(error, "Impossible de récupérer la ventilation de l'engagement");
   }
 }
@@ -194,16 +171,11 @@ export async function fetchPlatformMetrics({
   handle: string;
 }): Promise<PlatformMetrics> {
   const params = new URLSearchParams({ handle });
+  const path = `/platforms/${platform.toLowerCase()}/metrics?${params.toString()}`;
 
   try {
-    return await request<PlatformMetrics>(`/platforms/${platform.toLowerCase()}/metrics?${params.toString()}`);
+    return await request<PlatformMetrics>(path);
   } catch (error) {
-    if (shouldUseMock(error)) {
-      const metrics = mockFetchPlatformMetrics({ platform, handle });
-      if (metrics) {
-        return metrics;
-      }
-    }
     throw toUserFacingError(error, "Impossible de récupérer les métriques");
   }
 }

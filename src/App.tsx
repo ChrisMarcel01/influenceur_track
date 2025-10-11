@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Platform, platforms, platformOptions as platformChoices, getPlatformLabel } from "@/lib/platforms";
+import { DEFAULT_SEARCH_PLATFORMS } from "@/api/influencerSearch";
 import { useInfluencerSearch } from "@/hooks/useInfluencerSearch";
 import {
   fetchInfluencerProfile,
@@ -207,6 +208,7 @@ const translations: Record<Language, Record<string, string>> = {
     "Rapports": "Reports",
     "Rapports automatiques": "Automated reports",
     "Recommandé": "Recommended",
+    "Réseaux interrogés": "Queried networks",
     "Réseaux sociaux": "Social networks",
     "Score": "Score",
     "Seuil (Δ hebdo)": "Threshold (weekly Δ)",
@@ -214,6 +216,8 @@ const translations: Record<Language, Record<string, string>> = {
     "Télécharger PDF": "Download PDF",
     "Top posts récents": "Recent top posts",
     "Tous": "All",
+    "Voir le profil": "Open profile",
+    "Vérifié": "Verified",
     "@handle (ex: @nom_sur_tiktok)": "@handle (e.g. @name_on_tiktok)",
     "Δ hebdo": "Weekly Δ",
     "Δ hebdo (sélection)": "Weekly Δ (selection)",
@@ -227,6 +231,7 @@ const translations: Record<Language, Record<string, string>> = {
     "Thématiques": "Topics",
     "Chargement des données en cours...": "Loading data...",
     "Actualiser": "Refresh",
+    "Tapez au moins 2 caractères pour afficher des suggestions": "Type at least 2 characters to show suggestions",
   },
 };
 
@@ -464,11 +469,26 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
   const { t } = useTranslation();
   const [handle, setHandle] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [platform, setPlatform] = useState<Platform>(platformChoices[0].id);
-  const { results, isLoading, error, hasQuery } = useInfluencerSearch({ platform, query: handle, limit: 6 });
+  const [platform, setPlatform] = useState<Platform>(DEFAULT_SEARCH_PLATFORMS[0] ?? platformChoices[0].id);
+  const [searchPlatforms, setSearchPlatforms] = useState<Platform[]>(() => [...DEFAULT_SEARCH_PLATFORMS]);
+  const { results, issues, isLoading, error, hasQuery } = useInfluencerSearch({ platforms: searchPlatforms, query: handle, limit: 6 });
   const canSubmit = handle.trim().length > 0;
-  const shouldShowSuggestions = hasQuery && (isLoading || results.length > 0 || !!error);
+  const shouldShowSuggestions = hasQuery && (isLoading || results.length > 0 || issues.length > 0 || !!error);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const normalizedHandle = handle.trim().replace(/^@+/, "");
+  const needsMoreCharacters = normalizedHandle.length > 0 && !hasQuery;
+
+  const toggleSearchPlatform = useCallback((value: Platform) => {
+    setSearchPlatforms((prev) => {
+      if (prev.includes(value)) {
+        if (prev.length === 1) {
+          return prev;
+        }
+        return prev.filter((item) => item !== value);
+      }
+      return [...prev, value];
+    });
+  }, []);
 
   const onSubmit = useCallback(async () => {
     if (!handle.trim()) return;
@@ -484,77 +504,125 @@ function AddInfluencerControl({ inline=false }:{ inline?:boolean }){
 
   return (
     <div className={`flex ${inline?"items-center":"items-stretch"} gap-2 flex-wrap`}>
-      <div className="relative grow min-w-[220px]">
-        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
-        <Input
-          value={handle}
-          onChange={(e)=>setHandle(e.target.value)}
-          placeholder={t("@handle (ex: @nom_sur_tiktok)")}
-          className="pl-8"
-        />
-        {shouldShowSuggestions && (
-          <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border bg-popover text-popover-foreground shadow-xl">
-            <div className="flex items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <span>{t("Suggestions d’influenceurs")}</span>
-              {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-            </div>
-            <div className="px-3">
-              <Separator />
-            </div>
-            <div className="max-h-64 overflow-y-auto py-1">
-              {!isLoading && results.length === 0 && !error && (
-                <div className="px-3 py-2 text-sm text-muted-foreground">{t("Aucun résultat trouvé")}</div>
-              )}
-              {results.map(result => (
-                <button
-                  key={result.id}
-                  type="button"
-                  onMouseDown={(evt) => evt.preventDefault()}
-                  onClick={() => {
-                    setHandle(result.handle);
-                    setDisplayName(result.displayName);
-                    setPlatform(result.platform);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border bg-background text-sm font-medium">
-                    {result.displayName.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-medium leading-tight">{result.displayName}</div>
-                    <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                      <span>{result.handle}</span>
-                      <span>•</span>
-                      <span>{getPlatformLabel(result.platform)}</span>
-                      {result.location && (
-                        <>
-                          <span>•</span>
-                          <span>{result.location}</span>
-                        </>
-                      )}
-                    </div>
-                    {result.topics?.length ? (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {result.topics.map(topic => (
-                          <Badge key={`${result.id}-${topic}`} variant="outline" className="rounded-full border-border px-2 py-0 text-[10px] uppercase tracking-wide text-muted-foreground">
-                            {topic}
-                          </Badge>
-                        ))}
+      <div className="flex grow min-w-[220px] flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-medium uppercase tracking-wide">{t("Réseaux interrogés")}</span>
+          {platformChoices.map(({ id, label }) => {
+            const value = id as Platform;
+            const active = searchPlatforms.includes(value);
+            const isLastActive = active && searchPlatforms.length === 1;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => toggleSearchPlatform(value)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 ${
+                  active
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted"
+                } ${isLastActive ? "cursor-not-allowed opacity-70" : ""}`}
+                aria-pressed={active}
+                aria-disabled={isLastActive}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"/>
+          <Input
+            value={handle}
+            onChange={(e)=>setHandle(e.target.value)}
+            placeholder={t("@handle (ex: @nom_sur_tiktok)")}
+            className="pl-8"
+          />
+          {needsMoreCharacters && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("Tapez au moins 2 caractères pour afficher des suggestions")}
+            </p>
+          )}
+          {shouldShowSuggestions && (
+            <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border bg-popover text-popover-foreground shadow-xl">
+              <div className="flex items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <span>{t("Suggestions d’influenceurs")}</span>
+                {isLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              </div>
+              <div className="px-3">
+                <Separator />
+              </div>
+              <div className="max-h-64 overflow-y-auto py-1">
+                {!isLoading && results.length === 0 && issues.length === 0 && !error && (
+                  <div className="px-3 py-2 text-sm text-muted-foreground">{t("Aucun résultat trouvé")}</div>
+                )}
+                {results.map(result => {
+                  const initial = (result.name || result.handle || "?").trim().charAt(0).toUpperCase();
+                  return (
+                    <button
+                      key={result.id}
+                      type="button"
+                      onMouseDown={(evt) => evt.preventDefault()}
+                      onClick={() => {
+                        if (result.handle) {
+                          setHandle(result.handle);
+                        }
+                        setDisplayName(result.name);
+                        setPlatform(result.platform);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border bg-background text-sm font-medium">
+                        {result.avatar ? (
+                          <img src={result.avatar} alt={result.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <span>{initial || "?"}</span>
+                        )}
                       </div>
-                    ) : null}
+                      <div className="flex-1">
+                        <div className="font-medium leading-tight">{result.name}</div>
+                        <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                          {result.handle && <span>{result.handle}</span>}
+                          {result.handle && <span>•</span>}
+                          <span>{getPlatformLabel(result.platform)}</span>
+                        </div>
+                        {result.note && (
+                          <p className="mt-1 text-xs text-muted-foreground">{result.note}</p>
+                        )}
+                        {result.profileUrl && (
+                          <a
+                            href={result.profileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(evt) => evt.stopPropagation()}
+                            className="mt-1 inline-flex items-center gap-1 text-xs text-primary underline"
+                          >
+                            {t("Voir le profil")}
+                            <ArrowUpRight className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                      <div className="text-right text-xs leading-tight text-muted-foreground">
+                        {typeof result.followers === "number" && (
+                          <div>{result.followers.toLocaleString()} {t("Abonnés")}</div>
+                        )}
+                        {result.verified && <div>{t("Vérifié")}</div>}
+                      </div>
+                    </button>
+                  );
+                })}
+                {issues.map((issue, index) => (
+                  <div key={`${issue.platform}-${index}`} className="flex items-start gap-2 px-3 py-2 text-xs text-muted-foreground">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" aria-hidden="true" />
+                    <span>{issue.message}</span>
                   </div>
-                  <div className="text-right text-xs text-muted-foreground leading-tight">
-                    <div>{result.followers.toLocaleString()} {t("Abonnés")}</div>
-                    <div>{result.engagementRate}% {t("Engagement")}</div>
-                  </div>
-                </button>
-              ))}
-              {error && (
-                <div className="px-3 py-2 text-sm text-destructive">{error}</div>
-              )}
+                ))}
+                {error && (
+                  <div className="px-3 py-2 text-sm text-destructive">{error}</div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <select className="rounded-xl border p-2" value={platform} onChange={(e)=>setPlatform(e.target.value as Platform)}>
         {platformChoices.map(({ id, label }) => (
